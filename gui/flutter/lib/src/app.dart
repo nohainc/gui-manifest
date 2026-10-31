@@ -60,6 +60,7 @@ class GuiManifestApp extends StatelessWidget {
       runner: runner,
       title: title,
       builtins: builtins,
+      commandPages: commandPages,
       logo: logo,
     ),
   );
@@ -136,18 +137,9 @@ class _GuiManifestShellState extends State<GuiManifestShell> {
       if (entry.builtin != null) {
         return widget.builtins[entry.builtin]!(context, widget.runner, m);
       }
-      return CommandPage(
-        key: ValueKey(key),
-        command: m.command(entry.command!)!,
-        runner: widget.runner,
-        autoRun: true,
-      );
+      return _commandPage(key, m.command(entry.command!)!, autoRun: true);
     }
-    return CommandPage(
-      key: ValueKey(key),
-      command: m.command(key.substring(4))!,
-      runner: widget.runner,
-    );
+    return _commandPage(key, m.command(key.substring(4))!);
   }
 
   @override
