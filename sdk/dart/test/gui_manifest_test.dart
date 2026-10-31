@@ -49,19 +49,50 @@ void main() {
     });
   });
 
-  test('builder reproduces the conformance fixture', () {
-    final source = encodeManifest(
-      example.createManifest(example.createRunner()),
-    );
+  test('the example spec reproduces the conformance fixture', () {
+    final source = encodeManifest(manifestFromSpec(example.createSpec()));
     final fixture = File('$_fixtures/minimal.nano').readAsStringSync();
     expect(decode(source), decode(fixture));
+    expect(source, fixture);
   });
 
   test('generated manifest is valid', () {
-    final source = encodeManifest(
-      example.createManifest(example.createRunner()),
-    );
+    final source = encodeManifest(manifestFromSpec(example.createSpec()));
     expect(validateManifestSource(source), isEmpty);
+  });
+
+  group('manifest from a spec', () {
+    final manifest = manifestFromSpec(example.createSpec());
+
+    test('lists commands in declaration order with paths as ids', () {
+      expect(manifest.commands.map((c) => c.id), [
+        'status',
+        'workers.list',
+        'workers.remove',
+      ]);
+    });
+
+    test('appends the json args only to json commands', () {
+      final argv = {for (final c in manifest.commands) c.id: c.argv};
+      expect(argv['status'], ['status', '--json']);
+      expect(argv['workers.list'], ['workers', 'list', '--json']);
+      expect(argv['workers.remove'], ['workers', 'remove']);
+    });
+
+    test('records groups and membership', () {
+      expect(manifest.groups.map((g) => g.id), ['workers']);
+      final group = {for (final c in manifest.commands) c.id: c.group};
+      expect(group, {
+        'status': null,
+        'workers.list': 'workers',
+        'workers.remove': 'workers',
+      });
+    });
+
+    test('a group sidebar entry opens its default command', () {
+      final nav = manifest.navigation.map((n) => (n.id, n.command)).toList();
+      expect(nav, [('status', 'status'), ('workers', 'workers.list')]);
+    });
   });
 
   test('fixture is valid', () {
@@ -113,6 +144,53 @@ void main() {
         r'$.commands[0].destructive: "yes" is not one of true, false',
         r'$.navigation[0].id: "Bad" is not a valid id',
         r'$.navigation[0].command: unknown command "nope"',
+      ]);
+    });
+  });
+
+  group('groups', () {
+    const base = '''..
+    manifestVersion 1
+    cli..
+        name x
+        version 1
+    navigation:
+    commands:
+        ..
+            id a
+            argv:
+                a
+            title A
+            group ''';
+
+    List<String> issues(String source) =>
+        validateManifestSource(source).map((i) => i.toString()).toList();
+
+    test('commands must reference declared groups', () {
+      expect(issues('${base}nope'), [
+        r'$.commands[0].group: unknown group "nope"',
+      ]);
+    });
+
+    test('groups need ids and labels and valid parents', () {
+      const source = '''..
+    manifestVersion 1
+    cli..
+        name x
+        version 1
+    navigation:
+    groups:
+        ..
+            id g
+            parent missing
+        ..
+            id g
+            label G
+    commands:''';
+      expect(issues(source), [
+        r'$.groups[1].id: duplicate id "g"',
+        r'$.groups[0].label: is required',
+        r'$.groups[0].parent: unknown group "missing"',
       ]);
     });
   });

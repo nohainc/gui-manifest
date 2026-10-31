@@ -125,6 +125,34 @@ List<ManifestIssue> validateManifest(Object root) {
     str(cli, 'version', r'$.cli', required: true);
   }
 
+  final groupIds = <String>{};
+  final groupsRaw = doc['groups'];
+  if (groupsRaw != null) {
+    final groups = list(groupsRaw, r'$.groups');
+    if (groups != null) {
+      uniqueIds(groups, r'$.groups');
+      for (final raw in groups) {
+        if (raw is Map<String, Object> && raw['id'] is String) {
+          groupIds.add(raw['id'] as String);
+        }
+      }
+      for (final (i, raw) in groups.indexed) {
+        final p = '\$.groups[$i]';
+        final g = map(raw, p);
+        if (g == null) continue;
+        str(g, 'id', p, required: true, pattern: _id);
+        str(g, 'label', p, required: true);
+        final parent = str(g, 'parent', p, pattern: _id);
+        if (parent != null && !groupIds.contains(parent)) {
+          issue('$p.parent', 'unknown group "$parent"');
+        }
+        if (parent != null && parent == g['id']) {
+          issue('$p.parent', 'a group cannot be its own parent');
+        }
+      }
+    }
+  }
+
   final commandIds = <String>{};
   final commands = listRequired(doc['commands'], r'$.commands');
   if (commands != null) {
@@ -137,6 +165,10 @@ List<ManifestIssue> validateManifest(Object root) {
       if (id != null) commandIds.add(id);
       strings(c, 'argv', p, required: true);
       str(c, 'title', p, required: true);
+      final group = str(c, 'group', p, pattern: _id);
+      if (group != null && !groupIds.contains(group)) {
+        issue('$p.group', 'unknown group "$group"');
+      }
       for (final key in [
         'destructive',
         'interactive',

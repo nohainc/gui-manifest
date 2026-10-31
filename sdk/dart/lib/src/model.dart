@@ -44,6 +44,33 @@ final class GuiCliInfo {
   };
 }
 
+/// A named set of commands, e.g. `workers` containing `workers.list`.
+final class GuiGroup {
+  const GuiGroup({
+    required this.id,
+    required this.label,
+    this.icon,
+    this.description,
+    this.parent,
+  });
+
+  final String id;
+  final String label;
+  final String? icon;
+  final String? description;
+
+  /// Id of the enclosing group, if any.
+  final String? parent;
+
+  Map<String, Object> toTree() => <String, Object>{
+    'id': id,
+    'label': label,
+    if (icon != null) 'icon': icon!,
+    if (description != null) 'description': description!,
+    if (parent != null) 'parent': parent!,
+  };
+}
+
 final class GuiOutput {
   const GuiOutput({this.format = GuiFormat.text, this.view = GuiView.raw});
 
@@ -105,6 +132,7 @@ final class GuiCommand {
     this.longRunning = false,
     this.requires = const <String>[],
     this.hidden = false,
+    this.group,
   });
 
   final String id;
@@ -119,11 +147,15 @@ final class GuiCommand {
   final List<String> requires;
   final bool hidden;
 
+  /// Id of the [GuiGroup] this command belongs to.
+  final String? group;
+
   Map<String, Object> toTree() => <String, Object>{
     'id': id,
     'argv': List<Object>.of(argv),
     'title': title,
     if (description != null) 'description': description!,
+    if (group != null) 'group': group!,
     if (destructive) 'destructive': _bool(true),
     if (interactive) 'interactive': _bool(true),
     if (longRunning) 'longRunning': _bool(true),
@@ -188,6 +220,7 @@ final class GuiManifest {
     required this.cli,
     required this.navigation,
     required this.commands,
+    this.groups = const <GuiGroup>[],
     this.manifestVersion = 1,
   });
 
@@ -195,12 +228,15 @@ final class GuiManifest {
   final GuiCliInfo cli;
   final List<GuiNavItem> navigation;
   final List<GuiCommand> commands;
+  final List<GuiGroup> groups;
 
   /// The Nano Markup value tree (strings, maps, lists only).
   Map<String, Object> toTree() => <String, Object>{
     'manifestVersion': '$manifestVersion',
     'cli': cli.toTree(),
     'navigation': <Object>[for (final n in navigation) n.toTree()],
+    if (groups.isNotEmpty)
+      'groups': <Object>[for (final g in groups) g.toTree()],
     'commands': <Object>[for (final c in commands) c.toTree()],
   };
 }

@@ -4,6 +4,7 @@
         name example
         version 0.1.0
         displayName Example CLI
+        description Example CLI
     navigation:
         ..
             id status
@@ -15,6 +16,12 @@
             label Workers
             icon cpu
             command workers.list
+    groups:
+        ..
+            id workers
+            label Workers
+            icon cpu
+            description Manage workers.
     commands:
         ..
             id status
@@ -34,6 +41,7 @@
                 --json
             title List workers
             description List workers.
+            group workers
             output..
                 format json
                 view table
@@ -44,6 +52,7 @@
                 remove
             title Remove worker
             description Remove worker.
+            group workers
             destructive true
             parameters:
                 ..

@@ -103,6 +103,12 @@
           }
         }
       }
+    },
+    "groups": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/group"
+      }
     }
   },
   "$defs": {
@@ -188,6 +194,9 @@
             "true",
             "false"
           ]
+        },
+        "group": {
+          "$ref": "#/$defs/id"
         }
       }
     },
@@ -252,6 +261,30 @@
     "id": {
       "type": "string",
       "pattern": "^[a-z][a-zA-Z0-9]*(\\.[a-z][a-zA-Z0-9]*)*$"
+    },
+    "group": {
+      "type": "object",
+      "required": [
+        "id",
+        "label"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "parent": {
+          "$ref": "#/$defs/id"
+        }
+      }
     }
   }
 }

@@ -3,7 +3,8 @@
   "cli": {
     "name": "example",
     "version": "0.1.0",
-    "displayName": "Example CLI"
+    "displayName": "Example CLI",
+    "description": "Example CLI"
   },
   "navigation": [
     {
@@ -17,6 +18,14 @@
       "label": "Workers",
       "icon": "cpu",
       "command": "workers.list"
+    }
+  ],
+  "groups": [
+    {
+      "id": "workers",
+      "label": "Workers",
+      "icon": "cpu",
+      "description": "Manage workers."
     }
   ],
   "commands": [
@@ -42,6 +51,7 @@
       ],
       "title": "List workers",
       "description": "List workers.",
+      "group": "workers",
       "output": {
         "format": "json",
         "view": "table"
@@ -55,6 +65,7 @@
       ],
       "title": "Remove worker",
       "description": "Remove worker.",
+      "group": "workers",
       "destructive": "true",
       "parameters": [
         {

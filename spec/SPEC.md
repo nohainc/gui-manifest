@@ -41,6 +41,7 @@ Nano Markup has three value kinds: string, mapping and sequence.
 | `manifestVersion` | integer | yes | Version actually returned |
 | `cli` | mapping | yes | `name`, `version`, `displayName`, `description` |
 | `navigation` | sequence | yes | Sidebar entries in display order (see §4) |
+| `groups` | sequence | no | Command groups (see §4.1) |
 | `commands` | sequence | yes | Commands in display order (see §5) |
 | `screens` | sequence | no | Screens, each with an `id` (see §6) |
 
@@ -53,11 +54,21 @@ Each entry: `id`, `label`, `icon`, `group?`, and exactly one target:
 custom screen id such as `workspace.status`). Unknown `builtin` ids fall back
 to the target's generated screen or are hidden.
 
+### 4.1 Groups
+
+A group names a set of related commands (e.g. `workers` containing
+`workers.list`, `workers.add`). Fields: `id`, `label`, `icon?`,
+`description?`, `parent?` (id of an enclosing group). A command joins a group
+with its `group` field. A GUI may show groups as sidebar sections; a
+navigation entry for a group targets one command (normally its default
+command). Every `group` and `parent` reference MUST name a declared group.
+
 ## 5. Commands
 
 | Field | Type | Notes |
 | --- | --- | --- |
 | `id` | id | Unique command id |
+| `group` | id | Optional; the group this command belongs to |
 | `argv` | sequence of strings | Fixed argument prefix, e.g. `["workers", "list"]` |
 | `title`, `description` | string | |
 | `parameters` | Parameter[] | See §5.1 |

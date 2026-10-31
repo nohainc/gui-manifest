@@ -1,6 +1,7 @@
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 
+import 'ids.dart';
 import 'model.dart';
 
 /// GUI metadata attached to a `package:args` [Command].
@@ -71,7 +72,7 @@ GuiManifest buildManifest(
     final meta = command is GuiDescribed<Object?>
         ? command.gui
         : const GuiMeta();
-    final id = current.map(_idSegment).join('.');
+    final id = commandId(current);
     final title = meta.title ?? _titleFor(command);
     commands.add(
       GuiCommand(
@@ -124,19 +125,6 @@ String _titleFor(Command<Object?> command) {
   return firstLine.endsWith('.')
       ? firstLine.substring(0, firstLine.length - 1)
       : firstLine;
-}
-
-String _idSegment(String name) {
-  final parts = name.split(RegExp(r'[-_]')).where((p) => p.isNotEmpty);
-  final buffer = StringBuffer();
-  for (final (i, p) in parts.indexed) {
-    buffer.write(
-      i == 0
-          ? p.toLowerCase()
-          : '${p[0].toUpperCase()}${p.substring(1).toLowerCase()}',
-    );
-  }
-  return buffer.toString();
 }
 
 Iterable<GuiParameter> _options(ArgParser parser, GuiMeta meta) sync* {
