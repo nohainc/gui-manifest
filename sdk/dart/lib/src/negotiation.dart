@@ -16,9 +16,8 @@ sealed class GuiManifestRequest {
     if (arg == '--gui-manifest') return const GuiManifestAccepted(1);
     if (!arg.startsWith('--gui-manifest=')) return null;
     final raw = arg.substring('--gui-manifest='.length);
-    final requested = RegExp(r'^(0|[1-9][0-9]*)$').hasMatch(raw)
-        ? int.parse(raw)
-        : null;
+    final requested =
+        RegExp(r'^(0|[1-9][0-9]*)$').hasMatch(raw) ? int.parse(raw) : null;
     if (requested == null) {
       return GuiManifestRejected('invalid manifest version "$raw"');
     }

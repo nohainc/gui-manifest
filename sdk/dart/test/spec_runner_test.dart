@@ -12,13 +12,14 @@ GuiParameter _positional(
   String name, {
   bool required = false,
   bool multiple = false,
-}) => GuiParameter(
-  name: name,
-  kind: GuiParamKind.positional,
-  type: GuiParamType.string,
-  required: required,
-  multiple: multiple,
-);
+}) =>
+    GuiParameter(
+      name: name,
+      kind: GuiParamKind.positional,
+      type: GuiParamType.string,
+      required: required,
+      multiple: multiple,
+    );
 
 /// Records what handlers received.
 CliSpec _spec(
@@ -153,6 +154,23 @@ CliSpec _spec(
         ],
         handler: (r) {
           log.add('login ${r.option('token')}');
+          return 0;
+        },
+      ),
+      CliCommand(
+        name: 'legacy',
+        title: 'Legacy',
+        description: 'Takes an old flag.',
+        parameters: const [
+          GuiParameter(
+            name: 'password',
+            kind: GuiParamKind.flag,
+            type: GuiParamType.boolean,
+            hidden: true,
+          ),
+        ],
+        handler: (r) {
+          log.add('legacy password=${r.flag('password')}');
           return 0;
         },
       ),
@@ -354,6 +372,17 @@ void main() {
       expect(log, isEmpty, reason: 'help must not run the default command');
       final command = await _run(_spec(log), ['workers', 'add', '--help']);
       expect(command.out, contains('--region'));
+    });
+  });
+
+  group('hidden parameters', () {
+    test('are accepted but absent from help and the manifest', () async {
+      expect((await _run(_spec(log), ['legacy', '--password'])).code, 0);
+      expect(log, ['legacy password=true']);
+      final help = await _run(_spec(log), ['legacy', '--help']);
+      expect(help.out, isNot(contains('password')));
+      final manifest = await _run(_spec(log), ['--gui-manifest=1']);
+      expect(manifest.out, isNot(contains('password')));
     });
   });
 

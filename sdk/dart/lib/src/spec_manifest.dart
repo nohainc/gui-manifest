@@ -46,7 +46,10 @@ GuiManifest manifestFromSpec(CliSpec spec) {
             ],
             title: node.title,
             description: node.description,
-            parameters: node.parameters,
+            parameters: [
+              for (final p in node.parameters)
+                if (!p.hidden) p,
+            ],
             output: node.output,
             destructive: node.destructive,
             interactive: node.interactive,

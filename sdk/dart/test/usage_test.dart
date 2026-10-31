@@ -6,14 +6,15 @@ CliCommand _cmd(
   String description, {
   List<GuiParameter> parameters = const [],
   bool Function()? visible,
-}) => CliCommand(
-  name: name,
-  title: name,
-  description: description,
-  parameters: parameters,
-  visible: visible,
-  handler: (_) => 0,
-);
+}) =>
+    CliCommand(
+      name: name,
+      title: name,
+      description: description,
+      parameters: parameters,
+      visible: visible,
+      handler: (_) => 0,
+    );
 
 GuiParameter _p(
   String name,
@@ -21,13 +22,14 @@ GuiParameter _p(
   bool required = false,
   bool multiple = false,
   GuiParamType type = GuiParamType.string,
-}) => GuiParameter(
-  name: name,
-  kind: kind,
-  type: type,
-  required: required,
-  multiple: multiple,
-);
+}) =>
+    GuiParameter(
+      name: name,
+      kind: kind,
+      type: type,
+      required: required,
+      multiple: multiple,
+    );
 
 CliSpec _spec({bool showMore = true, String Function(CliSpec)? usageBuilder}) =>
     CliSpec(

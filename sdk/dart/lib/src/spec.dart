@@ -202,8 +202,8 @@ final class CliInvocation {
     required this.err,
     required ArgResults args,
     required Map<String, Object?> globals,
-  }) : _args = args, // ignore: prefer_initializing_formals
-       _globals = globals; // ignore: prefer_initializing_formals
+  })  : _args = args, // ignore: prefer_initializing_formals
+        _globals = globals; // ignore: prefer_initializing_formals
 
   final CliCommand command;
 

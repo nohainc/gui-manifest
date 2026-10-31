@@ -37,11 +37,11 @@ final class GuiCliInfo {
   final String? description;
 
   Map<String, Object> toTree() => <String, Object>{
-    'name': name,
-    'version': version,
-    if (displayName != null) 'displayName': displayName!,
-    if (description != null) 'description': description!,
-  };
+        'name': name,
+        'version': version,
+        if (displayName != null) 'displayName': displayName!,
+        if (description != null) 'description': description!,
+      };
 }
 
 /// A named set of commands, e.g. `workers` containing `workers.list`.
@@ -63,12 +63,12 @@ final class GuiGroup {
   final String? parent;
 
   Map<String, Object> toTree() => <String, Object>{
-    'id': id,
-    'label': label,
-    if (icon != null) 'icon': icon!,
-    if (description != null) 'description': description!,
-    if (parent != null) 'parent': parent!,
-  };
+        'id': id,
+        'label': label,
+        if (icon != null) 'icon': icon!,
+        if (description != null) 'description': description!,
+        if (parent != null) 'parent': parent!,
+      };
 }
 
 final class GuiOutput {
@@ -78,9 +78,9 @@ final class GuiOutput {
   final GuiView view;
 
   Map<String, Object> toTree() => <String, Object>{
-    'format': format.name,
-    'view': view.name,
-  };
+        'format': format.name,
+        'view': view.name,
+      };
 }
 
 final class GuiParameter {
@@ -94,6 +94,7 @@ final class GuiParameter {
     this.multiple = false,
     this.label,
     this.help,
+    this.hidden = false,
   });
 
   final String name;
@@ -106,17 +107,21 @@ final class GuiParameter {
   final String? label;
   final String? help;
 
+  /// Accepted on the command line (for compatibility) but left out of help
+  /// and of the GUI manifest.
+  final bool hidden;
+
   Map<String, Object> toTree() => <String, Object>{
-    'name': name,
-    'kind': kind.name,
-    'type': type == GuiParamType.enumeration ? 'enum' : type.name,
-    if (required) 'required': _bool(true),
-    if (defaultValue != null) 'default': defaultValue!,
-    if (values.isNotEmpty) 'values': List<Object>.of(values),
-    if (multiple) 'multiple': _bool(true),
-    if (label != null) 'label': label!,
-    if (help != null) 'help': help!,
-  };
+        'name': name,
+        'kind': kind.name,
+        'type': type == GuiParamType.enumeration ? 'enum' : type.name,
+        if (required) 'required': _bool(true),
+        if (defaultValue != null) 'default': defaultValue!,
+        if (values.isNotEmpty) 'values': List<Object>.of(values),
+        if (multiple) 'multiple': _bool(true),
+        if (label != null) 'label': label!,
+        if (help != null) 'help': help!,
+      };
 }
 
 final class GuiCommand {
@@ -151,20 +156,20 @@ final class GuiCommand {
   final String? group;
 
   Map<String, Object> toTree() => <String, Object>{
-    'id': id,
-    'argv': List<Object>.of(argv),
-    'title': title,
-    if (description != null) 'description': description!,
-    if (group != null) 'group': group!,
-    if (destructive) 'destructive': _bool(true),
-    if (interactive) 'interactive': _bool(true),
-    if (longRunning) 'longRunning': _bool(true),
-    if (hidden) 'hidden': _bool(true),
-    if (requires.isNotEmpty) 'requires': List<Object>.of(requires),
-    if (parameters.isNotEmpty)
-      'parameters': <Object>[for (final p in parameters) p.toTree()],
-    'output': output.toTree(),
-  };
+        'id': id,
+        'argv': List<Object>.of(argv),
+        'title': title,
+        if (description != null) 'description': description!,
+        if (group != null) 'group': group!,
+        if (destructive) 'destructive': _bool(true),
+        if (interactive) 'interactive': _bool(true),
+        if (longRunning) 'longRunning': _bool(true),
+        if (hidden) 'hidden': _bool(true),
+        if (requires.isNotEmpty) 'requires': List<Object>.of(requires),
+        if (parameters.isNotEmpty)
+          'parameters': <Object>[for (final p in parameters) p.toTree()],
+        'output': output.toTree(),
+      };
 }
 
 /// A sidebar entry. Exactly one of [command], [screen], [builtin] is set.
@@ -175,8 +180,8 @@ final class GuiNavItem {
     String this.command, {
     this.icon,
     this.group,
-  }) : screen = null,
-       builtin = null;
+  })  : screen = null,
+        builtin = null;
 
   const GuiNavItem.screen(
     this.id,
@@ -184,8 +189,8 @@ final class GuiNavItem {
     String this.screen, {
     this.icon,
     this.group,
-  }) : command = null,
-       builtin = null;
+  })  : command = null,
+        builtin = null;
 
   const GuiNavItem.builtin(
     this.id,
@@ -193,8 +198,8 @@ final class GuiNavItem {
     String this.builtin, {
     this.icon,
     this.group,
-  }) : command = null,
-       screen = null;
+  })  : command = null,
+        screen = null;
 
   final String id;
   final String label;
@@ -205,14 +210,14 @@ final class GuiNavItem {
   final String? builtin;
 
   Map<String, Object> toTree() => <String, Object>{
-    'id': id,
-    'label': label,
-    if (icon != null) 'icon': icon!,
-    if (group != null) 'group': group!,
-    if (command != null) 'command': command!,
-    if (screen != null) 'screen': screen!,
-    if (builtin != null) 'builtin': builtin!,
-  };
+        'id': id,
+        'label': label,
+        if (icon != null) 'icon': icon!,
+        if (group != null) 'group': group!,
+        if (command != null) 'command': command!,
+        if (screen != null) 'screen': screen!,
+        if (builtin != null) 'builtin': builtin!,
+      };
 }
 
 final class GuiManifest {
@@ -232,11 +237,11 @@ final class GuiManifest {
 
   /// The Nano Markup value tree (strings, maps, lists only).
   Map<String, Object> toTree() => <String, Object>{
-    'manifestVersion': '$manifestVersion',
-    'cli': cli.toTree(),
-    'navigation': <Object>[for (final n in navigation) n.toTree()],
-    if (groups.isNotEmpty)
-      'groups': <Object>[for (final g in groups) g.toTree()],
-    'commands': <Object>[for (final c in commands) c.toTree()],
-  };
+        'manifestVersion': '$manifestVersion',
+        'cli': cli.toTree(),
+        'navigation': <Object>[for (final n in navigation) n.toTree()],
+        if (groups.isNotEmpty)
+          'groups': <Object>[for (final g in groups) g.toTree()],
+        'commands': <Object>[for (final c in commands) c.toTree()],
+      };
 }

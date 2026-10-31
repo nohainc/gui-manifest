@@ -36,7 +36,7 @@ Future<int> runCli(
 /// [CliSpec.usageExitCode].
 final class CliRunner extends CommandRunner<int> {
   CliRunner(this.spec, {required this.out, required this.err})
-    : super(spec.name, spec.description) {
+      : super(spec.name, spec.description) {
     for (final g in spec.globals) {
       _addParameter(argParser, g);
     }
@@ -51,9 +51,9 @@ final class CliRunner extends CommandRunner<int> {
   Map<String, Object?> _globals = const <String, Object?>{};
 
   Command<int> _build(CliNode node) => switch (node) {
-    CliGroup() => _GroupCommand(node, this),
-    CliCommand() => _LeafCommand(node, this),
-  };
+        CliGroup() => _GroupCommand(node, this),
+        CliCommand() => _LeafCommand(node, this),
+      };
 
   /// Runs [args]; never throws for bad input.
   Future<int> execute(List<String> args) async {
@@ -72,7 +72,11 @@ final class CliRunner extends CommandRunner<int> {
   void printUsage() => out.writeln(usage);
 
   @override
-  String get usage => spec.usageBuilder?.call(spec) ?? super.usage;
+  String get usage {
+    final custom = spec.usageBuilder?.call(spec);
+    // Callers add the final newline.
+    return custom == null ? super.usage : custom.trimRight();
+  }
 
   /// `args` builds this text from a private field; use [usage] so errors and
   /// `--help` agree.
@@ -149,6 +153,7 @@ void _addParameter(ArgParser parser, GuiParameter p) {
         help: p.help ?? p.label,
         negatable: false,
         defaultsTo: p.defaultValue == 'true',
+        hide: p.hidden,
       );
     case GuiParamKind.option:
       final help = p.help ?? p.label;
@@ -158,6 +163,7 @@ void _addParameter(ArgParser parser, GuiParameter p) {
           help: help,
           allowed: p.values.isEmpty ? null : p.values,
           defaultsTo: p.defaultValue == null ? null : [p.defaultValue!],
+          hide: p.hidden,
         );
       } else {
         parser.addOption(
@@ -166,6 +172,7 @@ void _addParameter(ArgParser parser, GuiParameter p) {
           allowed: p.values.isEmpty ? null : p.values,
           defaultsTo: p.defaultValue,
           mandatory: p.required,
+          hide: p.hidden,
         );
       }
     case GuiParamKind.positional:
@@ -238,9 +245,9 @@ final class _LeafCommand extends Command<int> with _NodeCommand {
               : '[<${p.name}>${p.multiple ? '...' : ''}]',
     ];
     return super.invocation.replaceFirst(
-      RegExp(r' \[arguments\]$'),
-      ' [options]${words.isEmpty ? '' : ' ${words.join(' ')}'}',
-    );
+          RegExp(r' \[arguments\]$'),
+          ' [options]${words.isEmpty ? '' : ' ${words.join(' ')}'}',
+        );
   }
 
   @override

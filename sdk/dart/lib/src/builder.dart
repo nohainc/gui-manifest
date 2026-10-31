@@ -69,9 +69,8 @@ GuiManifest buildManifest(
       }
       return;
     }
-    final meta = command is GuiDescribed<Object?>
-        ? command.gui
-        : const GuiMeta();
+    final meta =
+        command is GuiDescribed<Object?> ? command.gui : const GuiMeta();
     final id = commandId(current);
     final title = meta.title ?? _titleFor(command);
     commands.add(
@@ -144,10 +143,10 @@ Iterable<GuiParameter> _options(ArgParser parser, GuiMeta meta) sync* {
     final type = meta.secretOptions.contains(option.name)
         ? GuiParamType.secret
         : meta.pathOptions.contains(option.name)
-        ? GuiParamType.path
-        : allowed.isNotEmpty
-        ? GuiParamType.enumeration
-        : GuiParamType.string;
+            ? GuiParamType.path
+            : allowed.isNotEmpty
+                ? GuiParamType.enumeration
+                : GuiParamType.string;
     final defaultsTo = option.defaultsTo;
     yield GuiParameter(
       name: option.name,
@@ -157,8 +156,8 @@ Iterable<GuiParameter> _options(ArgParser parser, GuiMeta meta) sync* {
       defaultValue: type == GuiParamType.secret || defaultsTo == null
           ? null
           : defaultsTo is List
-          ? null
-          : '$defaultsTo',
+              ? null
+              : '$defaultsTo',
       values: allowed,
       multiple: option.isMultiple,
       help: option.help,

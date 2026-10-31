@@ -6,15 +6,16 @@ CliCommand _cmd(
   List<GuiParameter> parameters = const [],
   List<String> aliases = const [],
   bool navigation = false,
-}) => CliCommand(
-  name: name,
-  title: name,
-  description: name,
-  parameters: parameters,
-  aliases: aliases,
-  navigation: navigation,
-  handler: (_) => 0,
-);
+}) =>
+    CliCommand(
+      name: name,
+      title: name,
+      description: name,
+      parameters: parameters,
+      aliases: aliases,
+      navigation: navigation,
+      handler: (_) => 0,
+    );
 
 CliSpec _spec(List<CliNode> nodes, {List<GuiParameter> globals = const []}) =>
     CliSpec(
@@ -33,19 +34,20 @@ GuiParameter _param(
   bool multiple = false,
   String? defaultValue,
   List<String> values = const [],
-}) => GuiParameter(
-  name: name,
-  kind: kind,
-  type: type,
-  required: required,
-  multiple: multiple,
-  defaultValue: defaultValue,
-  values: values,
-);
+}) =>
+    GuiParameter(
+      name: name,
+      kind: kind,
+      type: type,
+      required: required,
+      multiple: multiple,
+      defaultValue: defaultValue,
+      values: values,
+    );
 
 Matcher _invalid(String part) => throwsA(
-  isA<CliSpecError>().having((e) => e.message, 'message', contains(part)),
-);
+      isA<CliSpecError>().having((e) => e.message, 'message', contains(part)),
+    );
 
 void main() {
   test('a valid spec is accepted', () {
@@ -94,11 +96,11 @@ void main() {
     });
     test('the same name may repeat in different groups', () {
       CliGroup g(String name) => CliGroup(
-        name: name,
-        title: name,
-        description: name,
-        children: [_cmd('list')],
-      );
+            name: name,
+            title: name,
+            description: name,
+            children: [_cmd('list')],
+          );
       _spec([g('workers'), g('folders')]);
     });
   });
@@ -141,7 +143,8 @@ void main() {
     CliSpec with_(
       List<GuiParameter> parameters, {
       List<GuiParameter> globals = const [],
-    }) => _spec([_cmd('c', parameters: parameters)], globals: globals);
+    }) =>
+        _spec([_cmd('c', parameters: parameters)], globals: globals);
 
     test('required positionals cannot follow optional ones', () {
       expect(
