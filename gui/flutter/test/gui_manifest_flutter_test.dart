@@ -155,6 +155,25 @@ void main() {
     expect(runner.calls.last, ['workers', 'remove', 'w1']);
   });
 
+  testWidgets('commandPages replace generated pages', (tester) async {
+    final runner = _FakeRunner();
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      GuiManifestApp(
+        runner: runner,
+        title: 'Example',
+        commandPages: {
+          'status': (context, command, runner) => Text('custom ${command.id}'),
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('custom status'), findsOneWidget);
+    expect(runner.calls, isEmpty, reason: 'custom page decides what to run');
+  });
+
   testWidgets('shows an error screen when the manifest fails', (tester) async {
     await _pump(tester, _FakeRunner(manifest: 'not a manifest'));
     expect(find.textContaining('Invalid GUI manifest'), findsOneWidget);

@@ -24,7 +24,9 @@ runApp(GuiManifestApp(
 - The CLI is started directly with `Process.start` (no shell); stdin is
   closed, so prompts get EOF.
 
-`GuiManifestShell` can be embedded in an existing `MaterialApp`.
+`commandPages` replaces the generated page of a command id with a custom
+widget (e.g. a live dashboard) while keeping the manifest as the source of
+navigation. `GuiManifestShell` can be embedded in an existing `MaterialApp`.
 
 ```console
 flutter test

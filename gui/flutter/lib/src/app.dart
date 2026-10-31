@@ -13,6 +13,14 @@ typedef BuiltinScreenBuilder =
       GuiManifestModel manifest,
     );
 
+/// Replaces the generated page of one manifest command.
+typedef CommandPageBuilder =
+    Widget Function(
+      BuildContext context,
+      CommandSpec command,
+      CliRunner runner,
+    );
+
 /// A complete desktop app for one CLI.
 ///
 /// The host app supplies the CLI, theme and optional custom screens; all
@@ -26,6 +34,7 @@ class GuiManifestApp extends StatelessWidget {
     this.darkTheme,
     this.themeMode = ThemeMode.system,
     this.builtins = const {},
+    this.commandPages = const {},
     this.logo,
   });
 
@@ -35,6 +44,9 @@ class GuiManifestApp extends StatelessWidget {
   final ThemeData? darkTheme;
   final ThemeMode themeMode;
   final Map<String, BuiltinScreenBuilder> builtins;
+
+  /// Custom pages by command id; other commands get the generated page.
+  final Map<String, CommandPageBuilder> commandPages;
   final Widget? logo;
 
   @override
@@ -60,12 +72,14 @@ class GuiManifestShell extends StatefulWidget {
     required this.runner,
     required this.title,
     this.builtins = const {},
+    this.commandPages = const {},
     this.logo,
   });
 
   final CliRunner runner;
   final String title;
   final Map<String, BuiltinScreenBuilder> builtins;
+  final Map<String, CommandPageBuilder> commandPages;
   final Widget? logo;
 
   @override
@@ -97,6 +111,22 @@ class _GuiManifestShellState extends State<GuiManifestShell> {
       for (final c in m.commands)
         if (!c.hidden && !linked.contains(c.id)) c,
     ];
+  }
+
+  Widget _commandPage(String key, CommandSpec command, {bool autoRun = false}) {
+    final custom = widget.commandPages[command.id];
+    if (custom != null) {
+      return KeyedSubtree(
+        key: ValueKey(key),
+        child: custom(context, command, widget.runner),
+      );
+    }
+    return CommandPage(
+      key: ValueKey(key),
+      command: command,
+      runner: widget.runner,
+      autoRun: autoRun,
+    );
   }
 
   Widget _content(GuiManifestModel m, String key) {
