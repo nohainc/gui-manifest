@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import 'cli_runner.dart';
 import 'command_page.dart';
-import 'icons.dart';
 import 'manifest.dart';
+import 'settings_page.dart';
+import 'sidebar.dart';
 import 'sidebar_model.dart';
+import 'view_preferences.dart';
 
 /// Builds a host-registered screen for a `builtin` navigation entry.
 typedef BuiltinScreenBuilder =
@@ -36,6 +38,7 @@ class GuiManifestApp extends StatelessWidget {
     this.themeMode = ThemeMode.system,
     this.builtins = const {},
     this.commandPages = const {},
+    this.preferencesStore,
     this.logo,
   });
 
@@ -48,6 +51,10 @@ class GuiManifestApp extends StatelessWidget {
 
   /// Custom pages by command id; other commands get the generated page.
   final Map<String, CommandPageBuilder> commandPages;
+
+  /// Where view settings (text size) are kept; they last only for the
+  /// session when null.
+  final ViewPreferencesStore? preferencesStore;
   final Widget? logo;
 
   @override
@@ -62,6 +69,7 @@ class GuiManifestApp extends StatelessWidget {
       title: title,
       builtins: builtins,
       commandPages: commandPages,
+      preferencesStore: preferencesStore,
       logo: logo,
     ),
   );
@@ -75,6 +83,7 @@ class GuiManifestShell extends StatefulWidget {
     required this.title,
     this.builtins = const {},
     this.commandPages = const {},
+    this.preferencesStore,
     this.logo,
   });
 
@@ -82,6 +91,7 @@ class GuiManifestShell extends StatefulWidget {
   final String title;
   final Map<String, BuiltinScreenBuilder> builtins;
   final Map<String, CommandPageBuilder> commandPages;
+  final ViewPreferencesStore? preferencesStore;
   final Widget? logo;
 
   @override
@@ -95,6 +105,15 @@ class _GuiManifestShellState extends State<GuiManifestShell> {
   /// Ids of expanded sidebar rows.
   final _expanded = <String>{};
 
+  late final ViewPreferencesStore _store =
+      widget.preferencesStore ?? ViewPreferencesStore.memory();
+  late GuiViewPreferences _preferences = _store.load();
+
+  void _setPreferences(GuiViewPreferences value) {
+    setState(() => _preferences = value);
+    _store.save(value);
+  }
+
   void _reload() => setState(() {
     _manifest = widget.runner.loadManifest();
   });
@@ -105,8 +124,9 @@ class _GuiManifestShellState extends State<GuiManifestShell> {
 
   void _select(SidebarModel sidebar, String key) => setState(() {
     _selected = key;
-    // Open the rows that lead to the page.
-    for (final entry in sidebar.pathTo(key)) {
+    // Open the groups that lead to the page (not the page's own group: a tap
+    // on it decides that).
+    for (final entry in sidebar.pathTo(key).reversed.skip(1)) {
       if (entry.isExpandable) _expanded.add(entry.id);
     }
   });
@@ -132,6 +152,12 @@ class _GuiManifestShellState extends State<GuiManifestShell> {
   }
 
   Widget _content(GuiManifestModel m, String key) {
+    if (key == settingsPageKey) {
+      return SettingsPage(
+        preferences: _preferences,
+        onChanged: _setPreferences,
+      );
+    }
     if (key.startsWith('nav:')) {
       final id = key.substring(4);
       final entry = m.navigation.firstWhere((n) => n.id == id);
@@ -145,167 +171,65 @@ class _GuiManifestShellState extends State<GuiManifestShell> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: FutureBuilder<GuiManifestModel>(
-        future: _manifest,
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return _ErrorScreen(error: '${snapshot.error}', onRetry: _reload);
-          }
-          final m = snapshot.data;
-          if (m == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final sidebar = buildSidebar(m, navVisible: (n) => _navVisible(m, n));
-          final keys = sidebar.keys.toList();
-          final selected = keys.contains(_selected)
-              ? _selected!
-              : keys.isEmpty
-              ? null
-              : keys.first;
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _Sidebar(
-                header:
-                    widget.logo ??
-                    Text(
-                      m.cli.displayName ?? widget.title,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                version: m.cli.version,
-                sidebar: sidebar,
-                selected: selected,
-                expanded: {
-                  ..._expanded,
-                  // The rows leading to the open page stay open (the page's own
-                  // row can still be collapsed).
-                  if (selected != null)
-                    for (final e in sidebar.pathTo(selected).reversed.skip(1))
-                      e.id,
-                },
-                onSelect: (key) => _select(sidebar, key),
-                onToggle: _toggle,
-                onReload: _reload,
-              ),
-              const VerticalDivider(width: 1),
-              Expanded(
-                child: selected == null
-                    ? const Center(child: Text('This CLI has no commands.'))
-                    : _content(m, selected),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _Sidebar extends StatelessWidget {
-  const _Sidebar({
-    required this.header,
-    required this.version,
-    required this.sidebar,
-    required this.selected,
-    required this.expanded,
-    required this.onSelect,
-    required this.onToggle,
-    required this.onReload,
-  });
-
-  final Widget header;
-  final String version;
-  final SidebarModel sidebar;
-  final String? selected;
-  final Set<String> expanded;
-  final ValueChanged<String> onSelect;
-  final ValueChanged<String> onToggle;
-  final VoidCallback onReload;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SizedBox(
-      width: 260,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(padding: const EdgeInsets.all(16), child: header),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+    // The text size applies to the whole shell, like the Syntila app.
+    final media = MediaQuery.of(context);
+    final scale = (media.textScaler.scale(1) * _preferences.textSize.scale)
+        .clamp(1.0, 1.6);
+    return MediaQuery(
+      data: media.copyWith(textScaler: TextScaler.linear(scale)),
+      child: Scaffold(
+        body: FutureBuilder<GuiManifestModel>(
+          future: _manifest,
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return _ErrorScreen(error: '${snapshot.error}', onRetry: _reload);
+            }
+            final m = snapshot.data;
+            if (m == null) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final sidebar = buildSidebar(
+              m,
+              navVisible: (n) => _navVisible(m, n),
+            );
+            final keys = sidebar.keys.toList();
+            final selected = _selected == settingsPageKey
+                ? settingsPageKey
+                : keys.contains(_selected)
+                ? _selected!
+                : keys.isEmpty
+                ? null
+                : keys.first;
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (final entry in sidebar.primary) _row(context, entry, 0),
-                if (sidebar.more.isNotEmpty) ...[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 16, 12, 4),
-                    child: Text(
-                      'Commands',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                GuiSidebar(
+                  header:
+                      widget.logo ??
+                      Text(
+                        m.cli.displayName ?? widget.title,
+                        style: Theme.of(context).textTheme.titleMedium,
                       ),
-                    ),
-                  ),
-                  for (final entry in sidebar.more) _row(context, entry, 0),
-                ],
+                  version: m.cli.version,
+                  model: sidebar,
+                  selected: selected,
+                  expanded: _expanded,
+                  onSelect: (key) => _select(sidebar, key),
+                  onToggle: _toggle,
+                  onReload: _reload,
+                  onOpenSettings: () =>
+                      setState(() => _selected = settingsPageKey),
+                ),
+                Expanded(
+                  child: selected == null
+                      ? const Center(child: Text('This CLI has no commands.'))
+                      : _content(m, selected),
+                ),
               ],
-            ),
-          ),
-          ListTile(
-            dense: true,
-            title: Text('v$version', style: theme.textTheme.bodySmall),
-            trailing: IconButton(
-              tooltip: 'Reload commands',
-              icon: const Icon(Icons.refresh, size: 18),
-              onPressed: onReload,
-            ),
-          ),
-        ],
+            );
+          },
+        ),
       ),
-    );
-  }
-
-  /// One row, plus its children when expanded.
-  Widget _row(BuildContext context, SidebarEntry entry, int depth) {
-    final theme = Theme.of(context);
-    final open = expanded.contains(entry.id);
-    final tile = ListTile(
-      dense: true,
-      contentPadding: EdgeInsets.only(left: 16.0 + depth * 16, right: 4),
-      leading: entry.icon == null && depth > 0
-          ? null
-          : Icon(iconFor(entry.icon), size: 20),
-      title: Text(entry.label, overflow: TextOverflow.ellipsis),
-      selected: entry.selectKey != null && entry.selectKey == selected,
-      selectedTileColor: theme.colorScheme.secondaryContainer,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      trailing: entry.isExpandable
-          ? IconButton(
-              tooltip: '${open ? 'Hide' : 'Show'} ${entry.label} commands',
-              icon: Icon(
-                open ? Icons.expand_less : Icons.expand_more,
-                size: 18,
-              ),
-              onPressed: () => onToggle(entry.id),
-            )
-          : null,
-      onTap: () {
-        final key = entry.selectKey;
-        if (key != null) {
-          onSelect(key);
-        } else {
-          onToggle(entry.id);
-        }
-      },
-    );
-    if (!entry.isExpandable || !open) return tile;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        tile,
-        for (final child in entry.children) _row(context, child, depth + 1),
-      ],
     );
   }
 }
