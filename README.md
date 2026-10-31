@@ -18,9 +18,9 @@ startup and builds its sidebar, screens, forms and result views dynamically.
 | --- | --- |
 | `spec/` | Source of truth: specification, schema for the decoded tree, example manifests (`.nano`) |
 | `gui/flutter/` | Reference GUI framework (Flutter package) |
-| `sdk/dart/` | Dart SDK for CLIs to emit manifests (`package:args`) |
+| `sdk/dart/` | Dart SDK: build, encode and validate manifests for `package:args` CLIs |
 | `sdk/python/` | Python SDK (planned) |
-| `tools/validator/` | Validates a manifest against the schema |
+| `tools/validator/` | CLI that validates manifest files or a live CLI (`--cli`) |
 | `conformance/` | Shared fixtures every SDK must pass |
 
 ## Principles

@@ -22,6 +22,7 @@
                 status
                 --json
             title Status
+            description Show status.
             output..
                 format json
                 view keyValue
@@ -32,6 +33,7 @@
                 list
                 --json
             title List workers
+            description List workers.
             output..
                 format json
                 view table
@@ -41,6 +43,7 @@
                 workers
                 remove
             title Remove worker
+            description Remove worker.
             destructive true
             parameters:
                 ..

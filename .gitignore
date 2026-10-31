@@ -3,3 +3,4 @@ build/
 .packages
 __pycache__/
 .DS_Store
+pubspec.lock

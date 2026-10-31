@@ -27,6 +27,7 @@
         "--json"
       ],
       "title": "Status",
+      "description": "Show status.",
       "output": {
         "format": "json",
         "view": "keyValue"
@@ -40,6 +41,7 @@
         "--json"
       ],
       "title": "List workers",
+      "description": "List workers.",
       "output": {
         "format": "json",
         "view": "table"
@@ -52,6 +54,7 @@
         "remove"
       ],
       "title": "Remove worker",
+      "description": "Remove worker.",
       "destructive": "true",
       "parameters": [
         {
