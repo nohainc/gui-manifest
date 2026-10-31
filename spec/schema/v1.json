@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "gui-manifest/v1.json",
+  "title": "GUI Manifest v1 (draft)",
+  "type": "object",
+  "required": ["manifestVersion", "cli", "navigation", "commands"],
+  "properties": {
+    "manifestVersion": { "const": 1 },
+    "cli": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "displayName": { "type": "string" },
+        "description": { "type": "string" }
+      }
+    },
+    "navigation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "label"],
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "icon": { "type": "string" },
+          "group": { "type": "string" },
+          "command": { "type": "string" },
+          "screen": { "type": "string" },
+          "builtin": { "type": "string" }
+        },
+        "oneOf": [
+          { "required": ["command"] },
+          { "required": ["screen"] },
+          { "required": ["builtin"] }
+        ]
+      }
+    },
+    "commands": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/command" }
+    },
+    "screens": { "type": "object" }
+  },
+  "$defs": {
+    "command": {
+      "type": "object",
+      "required": ["argv", "title"],
+      "properties": {
+        "argv": { "type": "array", "items": { "type": "string" } },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "parameters": { "type": "array", "items": { "$ref": "#/$defs/parameter" } },
+        "output": {
+          "type": "object",
+          "properties": {
+            "format": { "enum": ["text", "json", "jsonLines"] },
+            "view": { "enum": ["form", "table", "keyValue", "card", "log", "confirm", "raw"] }
+          }
+        },
+        "destructive": { "type": "boolean" },
+        "interactive": { "type": "boolean" },
+        "longRunning": { "type": "boolean" },
+        "requires": { "type": "array", "items": { "type": "string" } },
+        "hidden": { "type": "boolean" }
+      }
+    },
+    "parameter": {
+      "type": "object",
+      "required": ["name", "kind", "type"],
+      "properties": {
+        "name": { "type": "string" },
+        "kind": { "enum": ["option", "flag", "positional"] },
+        "type": { "enum": ["string", "integer", "number", "boolean", "enum", "path", "secret"] },
+        "required": { "type": "boolean" },
+        "default": {},
+        "values": { "type": "array", "items": { "type": "string" } },
+        "multiple": { "type": "boolean" },
+        "label": { "type": "string" },
+        "help": { "type": "string" }
+      }
+    }
+  }
+}
