@@ -9,14 +9,14 @@ A CLI that supports the protocol answers:
 <cli> --gui-manifest=1
 ```
 
-with a JSON manifest on stdout. A GUI built on this framework calls that flag at
+with a Nano Markup manifest on stdout. A GUI built on this framework calls that flag at
 startup and builds its sidebar, screens, forms and result views dynamically.
 
 ## Layout
 
 | Path | Purpose |
 | --- | --- |
-| `spec/` | Source of truth: specification, JSON Schema, example manifests |
+| `spec/` | Source of truth: specification, schema for the decoded tree, example manifests (`.nano`) |
 | `gui/flutter/` | Reference GUI framework (Flutter package) |
 | `sdk/dart/` | Dart SDK for CLIs to emit manifests (`package:args`) |
 | `sdk/python/` | Python SDK (planned) |

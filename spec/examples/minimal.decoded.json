@@ -1,0 +1,71 @@
+{
+  "manifestVersion": "1",
+  "cli": {
+    "name": "example",
+    "version": "0.1.0",
+    "displayName": "Example CLI"
+  },
+  "navigation": [
+    {
+      "id": "status",
+      "label": "Status",
+      "icon": "pulse",
+      "command": "status"
+    },
+    {
+      "id": "workers",
+      "label": "Workers",
+      "icon": "cpu",
+      "command": "workers.list"
+    }
+  ],
+  "commands": [
+    {
+      "id": "status",
+      "argv": [
+        "status",
+        "--json"
+      ],
+      "title": "Status",
+      "output": {
+        "format": "json",
+        "view": "keyValue"
+      }
+    },
+    {
+      "id": "workers.list",
+      "argv": [
+        "workers",
+        "list",
+        "--json"
+      ],
+      "title": "List workers",
+      "output": {
+        "format": "json",
+        "view": "table"
+      }
+    },
+    {
+      "id": "workers.remove",
+      "argv": [
+        "workers",
+        "remove"
+      ],
+      "title": "Remove worker",
+      "destructive": "true",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "positional",
+          "type": "string",
+          "required": "true",
+          "label": "Worker ID"
+        }
+      ],
+      "output": {
+        "format": "text",
+        "view": "raw"
+      }
+    }
+  ]
+}
