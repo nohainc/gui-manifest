@@ -30,3 +30,7 @@ startup and builds its sidebar, screens, forms and result views dynamically.
   their theme, CLI binding and custom screens.
 - The building-block set is small and fixed. Custom screens are registered by the
   host app, never described in the manifest.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
