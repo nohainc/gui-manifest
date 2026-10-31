@@ -63,6 +63,7 @@ final class CliGroup extends CliNode {
     required super.description,
     required this.children,
     this.defaultCommand,
+    this.navigationCommand,
     super.icon,
     super.navigation,
     super.aliases,
@@ -74,6 +75,13 @@ final class CliGroup extends CliNode {
   /// Child run when the group is invoked alone (`syntila workers` runs
   /// `workers list`). Without it, invoking the group alone is a usage error.
   final String? defaultCommand;
+
+  /// Child the sidebar entry opens (defaults to [defaultCommand]). Lets a
+  /// group have a sidebar entry without changing what running it alone does.
+  final String? navigationCommand;
+
+  /// Child opened by the sidebar entry.
+  String? get sidebarCommand => navigationCommand ?? defaultCommand;
 }
 
 /// A runnable command.
@@ -134,6 +142,7 @@ final class CliSpec {
     this.globals = const <GuiParameter>[],
     this.jsonArgs = const <String>['--json'],
     this.usageExitCode = 64,
+    this.usageBuilder,
   }) {
     _validate(this);
   }
@@ -156,6 +165,11 @@ final class CliSpec {
 
   /// Exit code for usage errors (unknown command, missing argument).
   final int usageExitCode;
+
+  /// Replaces the top-level usage text (printed by `--help` and with
+  /// top-level usage errors). Use [flatUsage] for a one-line-per-command
+  /// listing; without it `package:args` lists top-level commands only.
+  final String Function(CliSpec spec)? usageBuilder;
 
   /// Calls [visit] for every command with its path, in declaration order.
   void forEachCommand(
@@ -284,15 +298,20 @@ void _validate(CliSpec spec) {
         case CliGroup():
           if (node.children.isEmpty) fail('group "$label" has no children');
           final def = node.defaultCommand;
-          if (def != null &&
-              !node.children.any((c) => c is CliCommand && c.name == def)) {
-            fail(
-              'group "$label": defaultCommand "$def" is not a command '
-              'child',
-            );
+          for (final (field, value) in [
+            ('defaultCommand', def),
+            ('navigationCommand', node.navigationCommand),
+          ]) {
+            if (value != null &&
+                !node.children.any((c) => c is CliCommand && c.name == value)) {
+              fail('group "$label": $field "$value" is not a command child');
+            }
           }
-          if (node.navigation && def == null) {
-            fail('group "$label" has a sidebar entry but no defaultCommand');
+          if (node.navigation && node.sidebarCommand == null) {
+            fail(
+              'group "$label" has a sidebar entry but no defaultCommand or '
+              'navigationCommand',
+            );
           }
           walk(node.children, here);
         case CliCommand():

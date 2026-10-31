@@ -7,4 +7,5 @@ export 'src/negotiation.dart';
 export 'src/spec.dart';
 export 'src/spec_manifest.dart';
 export 'src/spec_runner.dart';
+export 'src/usage.dart';
 export 'src/validator.dart';

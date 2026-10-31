@@ -28,7 +28,7 @@ GuiManifest manifestFromSpec(CliSpec spec) {
             GuiNavItem.command(
               id,
               node.title,
-              commandId([...here, node.defaultCommand!]),
+              commandId([...here, node.sidebarCommand!]),
               icon: node.icon,
             ),
           );

@@ -66,6 +66,9 @@ Future<void> main(List<String> args) async {
 }
 ```
 
+Running with no command is a usage error (exit `usageExitCode`), not a help
+screen; `--help` anywhere prints help and succeeds.
+
 `runCli` answers `--gui-manifest[=N]` first (version negotiation; exit 2 for
 unsupported versions) and otherwise runs the matching handler.
 
@@ -77,6 +80,8 @@ unsupported versions) and otherwise runs the matching handler.
 | `parameters` (option, flag, positional) | `addOption` / `addFlag` / `addMultiOption`, positional count checks, GUI forms. Types `path`, `secret`, `enum` and `integer` reach the GUI |
 | `globals` | options accepted before, between or after the command words (`--json`) |
 | `defaultCommand` | a group invoked alone runs that child |
+| `navigationCommand` | child a group's sidebar entry opens (defaults to `defaultCommand`) |
+| `usageBuilder` | replaces the top-level `--help` text; `flatUsage(spec)` renders one line per command (`folders add PATH [--name NAME]`) |
 | `visible` | hides a command from help at run time (it still runs and stays in the manifest) |
 | `output`, `destructive`, `interactive`, `longRunning`, `requires`, `icon`, `navigation` | GUI hints only |
 | `jsonArgs` | arguments the GUI appends to JSON-format commands (default `--json`) |

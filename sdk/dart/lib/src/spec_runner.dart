@@ -72,10 +72,23 @@ final class CliRunner extends CommandRunner<int> {
   void printUsage() => out.writeln(usage);
 
   @override
+  String get usage => spec.usageBuilder?.call(spec) ?? super.usage;
+
+  /// `args` builds this text from a private field; use [usage] so errors and
+  /// `--help` agree.
+  @override
+  Never usageException(String message) => throw UsageException(message, usage);
+
+  @override
   Future<int?> runCommand(ArgResults topLevelResults) {
     var top = topLevelResults;
     final chain = _chain(top);
     final last = chain.last;
+    // Nothing to run: `args` prints help and succeeds; a CLI wants a usage
+    // error so scripts notice.
+    if (chain.length == 1 && top.rest.isEmpty && !top.flag('help')) {
+      usageException('Missing command.');
+    }
     // `syntila workers` runs `workers list`; `args` itself would report a
     // missing subcommand.
     final defaultCommand = last.command is _GroupCommand
