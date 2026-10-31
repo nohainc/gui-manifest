@@ -4,6 +4,7 @@ import 'cli_runner.dart';
 import 'command_page.dart';
 import 'icons.dart';
 import 'manifest.dart';
+import 'sidebar_model.dart';
 
 /// Builds a host-registered screen for a `builtin` navigation entry.
 typedef BuiltinScreenBuilder =
@@ -87,32 +88,32 @@ class GuiManifestShell extends StatefulWidget {
   State<GuiManifestShell> createState() => _GuiManifestShellState();
 }
 
-/// A sidebar destination: a manifest nav entry or a command from "All
-/// commands".
-typedef _Destination = ({String key, String label, IconData icon});
-
 class _GuiManifestShellState extends State<GuiManifestShell> {
   late Future<GuiManifestModel> _manifest = widget.runner.loadManifest();
   String? _selected;
+
+  /// Ids of expanded sidebar rows.
+  final _expanded = <String>{};
 
   void _reload() => setState(() {
     _manifest = widget.runner.loadManifest();
   });
 
-  List<NavEntry> _visibleNav(GuiManifestModel m) => [
-    for (final n in m.navigation)
-      if (n.command != null && m.command(n.command!) != null ||
-          n.builtin != null && widget.builtins.containsKey(n.builtin))
-        n,
-  ];
+  bool _navVisible(GuiManifestModel m, NavEntry n) =>
+      n.command != null && m.command(n.command!) != null ||
+      n.builtin != null && widget.builtins.containsKey(n.builtin);
 
-  List<CommandSpec> _otherCommands(GuiManifestModel m) {
-    final linked = {for (final n in m.navigation) n.command};
-    return [
-      for (final c in m.commands)
-        if (!c.hidden && !linked.contains(c.id)) c,
-    ];
-  }
+  void _select(SidebarModel sidebar, String key) => setState(() {
+    _selected = key;
+    // Open the rows that lead to the page.
+    for (final entry in sidebar.pathTo(key)) {
+      if (entry.isExpandable) _expanded.add(entry.id);
+    }
+  });
+
+  void _toggle(String id) => setState(() {
+    if (!_expanded.remove(id)) _expanded.add(id);
+  });
 
   Widget _commandPage(String key, CommandSpec command, {bool autoRun = false}) {
     final custom = widget.commandPages[command.id];
@@ -155,22 +156,13 @@ class _GuiManifestShellState extends State<GuiManifestShell> {
           if (m == null) {
             return const Center(child: CircularProgressIndicator());
           }
-          final nav = _visibleNav(m);
-          final others = _otherCommands(m);
-          final destinations = <_Destination>[
-            for (final n in nav)
-              (key: 'nav:${n.id}', label: n.label, icon: iconFor(n.icon)),
-          ];
-          final commandDestinations = <_Destination>[
-            for (final c in others)
-              (key: 'cmd:${c.id}', label: c.title, icon: fallbackIcon),
-          ];
-          final all = [...destinations, ...commandDestinations];
-          final selected = all.any((d) => d.key == _selected)
+          final sidebar = buildSidebar(m, navVisible: (n) => _navVisible(m, n));
+          final keys = sidebar.keys.toList();
+          final selected = keys.contains(_selected)
               ? _selected!
-              : all.isEmpty
+              : keys.isEmpty
               ? null
-              : all.first.key;
+              : keys.first;
           return Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -182,10 +174,18 @@ class _GuiManifestShellState extends State<GuiManifestShell> {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                 version: m.cli.version,
-                primary: destinations,
-                commands: commandDestinations,
+                sidebar: sidebar,
                 selected: selected,
-                onSelect: (key) => setState(() => _selected = key),
+                expanded: {
+                  ..._expanded,
+                  // The rows leading to the open page stay open (the page's own
+                  // row can still be collapsed).
+                  if (selected != null)
+                    for (final e in sidebar.pathTo(selected).reversed.skip(1))
+                      e.id,
+                },
+                onSelect: (key) => _select(sidebar, key),
+                onToggle: _toggle,
                 onReload: _reload,
               ),
               const VerticalDivider(width: 1),
@@ -206,33 +206,26 @@ class _Sidebar extends StatelessWidget {
   const _Sidebar({
     required this.header,
     required this.version,
-    required this.primary,
-    required this.commands,
+    required this.sidebar,
     required this.selected,
+    required this.expanded,
     required this.onSelect,
+    required this.onToggle,
     required this.onReload,
   });
 
   final Widget header;
   final String version;
-  final List<_Destination> primary;
-  final List<_Destination> commands;
+  final SidebarModel sidebar;
   final String? selected;
+  final Set<String> expanded;
   final ValueChanged<String> onSelect;
+  final ValueChanged<String> onToggle;
   final VoidCallback onReload;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    Widget item(_Destination d) => ListTile(
-      dense: true,
-      leading: Icon(d.icon, size: 20),
-      title: Text(d.label, overflow: TextOverflow.ellipsis),
-      selected: d.key == selected,
-      selectedTileColor: theme.colorScheme.secondaryContainer,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      onTap: () => onSelect(d.key),
-    );
     return SizedBox(
       width: 260,
       child: Column(
@@ -243,17 +236,19 @@ class _Sidebar extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               children: [
-                ...primary.map(item),
-                if (commands.isNotEmpty)
-                  ExpansionTile(
-                    title: Text(
-                      'All commands',
-                      style: theme.textTheme.labelLarge,
+                for (final entry in sidebar.primary) _row(context, entry, 0),
+                if (sidebar.more.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 16, 12, 4),
+                    child: Text(
+                      'Commands',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                    tilePadding: const EdgeInsets.symmetric(horizontal: 8),
-                    initiallyExpanded: commands.any((d) => d.key == selected),
-                    children: commands.map(item).toList(),
                   ),
+                  for (final entry in sidebar.more) _row(context, entry, 0),
+                ],
               ],
             ),
           ),
@@ -268,6 +263,49 @@ class _Sidebar extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  /// One row, plus its children when expanded.
+  Widget _row(BuildContext context, SidebarEntry entry, int depth) {
+    final theme = Theme.of(context);
+    final open = expanded.contains(entry.id);
+    final tile = ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.only(left: 16.0 + depth * 16, right: 4),
+      leading: entry.icon == null && depth > 0
+          ? null
+          : Icon(iconFor(entry.icon), size: 20),
+      title: Text(entry.label, overflow: TextOverflow.ellipsis),
+      selected: entry.selectKey != null && entry.selectKey == selected,
+      selectedTileColor: theme.colorScheme.secondaryContainer,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      trailing: entry.isExpandable
+          ? IconButton(
+              tooltip: '${open ? 'Hide' : 'Show'} ${entry.label} commands',
+              icon: Icon(
+                open ? Icons.expand_less : Icons.expand_more,
+                size: 18,
+              ),
+              onPressed: () => onToggle(entry.id),
+            )
+          : null,
+      onTap: () {
+        final key = entry.selectKey;
+        if (key != null) {
+          onSelect(key);
+        } else {
+          onToggle(entry.id);
+        }
+      },
+    );
+    if (!entry.isExpandable || !open) return tile;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        tile,
+        for (final child in entry.children) _row(context, child, depth + 1),
+      ],
     );
   }
 }

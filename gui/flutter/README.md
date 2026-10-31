@@ -12,8 +12,8 @@ runApp(GuiManifestApp(
 ));
 ```
 
-- Sidebar: manifest `navigation` entries (icons from `lib/src/icons.dart`),
-  then "All commands" for the remaining non-hidden commands.
+- Sidebar: manifest `navigation` entries (icons from `lib/src/icons.dart`); a main action that is also a group (same id as the command's `group`) is one expandable row, its label opens the page and its chevron shows the rest of the group;
+  then a "Commands" section with the other groups and the ungrouped commands (hidden ones never appear).
 - Command page: generated form (text, path, secret, enum, flag), exact
   command-line preview with secrets masked, Run/Cancel, confirmation for
   `destructive` commands, and a notice for `interactive` ones.

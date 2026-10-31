@@ -24,6 +24,25 @@ final class CliInfo {
   final String? description;
 }
 
+/// A named set of related commands (e.g. `workers`).
+final class GroupSpec {
+  const GroupSpec({
+    required this.id,
+    required this.label,
+    this.icon,
+    this.description,
+    this.parent,
+  });
+
+  final String id;
+  final String label;
+  final String? icon;
+  final String? description;
+
+  /// Id of the enclosing group, if any.
+  final String? parent;
+}
+
 final class NavEntry {
   const NavEntry({
     required this.id,
@@ -89,6 +108,7 @@ final class CommandSpec {
     this.longRunning = false,
     this.requires = const [],
     this.hidden = false,
+    this.group,
   });
 
   final String id;
@@ -103,6 +123,9 @@ final class CommandSpec {
   final bool longRunning;
   final List<String> requires;
   final bool hidden;
+
+  /// Id of the [GroupSpec] this command belongs to.
+  final String? group;
 
   /// Builds the argument list for [values] (parameter name → entered text).
   ///
@@ -139,6 +162,7 @@ final class GuiManifestModel {
     required this.cli,
     required this.navigation,
     required this.commands,
+    this.groups = const [],
   });
 
   /// Validates [tree] (a decoded Nano Markup document) and builds the model.
@@ -175,6 +199,17 @@ final class GuiManifestModel {
         for (final c in (doc['commands'] as List).cast<Map<String, Object>>())
           _command(c),
       ],
+      groups: [
+        for (final g
+            in (doc['groups'] as List? ?? const []).cast<Map<String, Object>>())
+          GroupSpec(
+            id: g['id'] as String,
+            label: g['label'] as String,
+            icon: g['icon'] as String?,
+            description: g['description'] as String?,
+            parent: g['parent'] as String?,
+          ),
+      ],
     );
   }
 
@@ -182,6 +217,14 @@ final class GuiManifestModel {
   final CliInfo cli;
   final List<NavEntry> navigation;
   final List<CommandSpec> commands;
+  final List<GroupSpec> groups;
+
+  GroupSpec? group(String id) {
+    for (final g in groups) {
+      if (g.id == id) return g;
+    }
+    return null;
+  }
 
   CommandSpec? command(String id) {
     for (final c in commands) {
@@ -225,5 +268,6 @@ CommandSpec _command(Map<String, Object> c) {
     longRunning: _flag(c, 'longRunning'),
     requires: _strings(c, 'requires'),
     hidden: _flag(c, 'hidden'),
+    group: c['group'] as String?,
   );
 }

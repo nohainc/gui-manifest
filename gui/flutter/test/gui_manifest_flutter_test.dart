@@ -49,6 +49,51 @@ Future<void> _pump(WidgetTester tester, CliRunner runner) async {
   await tester.pumpAndSettle();
 }
 
+/// A manifest with a group that has no main action, a subgroup, ungrouped
+/// commands and a hidden one.
+final Map<String, Object> _richManifest = {
+  'manifestVersion': '1',
+  'cli': {'name': 'x', 'version': '1', 'displayName': 'X'},
+  'navigation': [
+    {'id': 'status', 'label': 'Status', 'command': 'status'},
+  ],
+  'groups': [
+    {'id': 'config', 'label': 'Config'},
+    {'id': 'tools', 'label': 'Tools', 'parent': 'config'},
+  ],
+  'commands': [
+    {
+      'id': 'status',
+      'argv': ['status'],
+      'title': 'Status',
+      'output': {'format': 'text', 'view': 'raw'},
+    },
+    {
+      'id': 'config.show',
+      'argv': ['config', 'show'],
+      'title': 'Show config',
+      'group': 'config',
+    },
+    {
+      'id': 'config.tools.run',
+      'argv': ['config', 'tools', 'run'],
+      'title': 'Run tool',
+      'group': 'tools',
+    },
+    {
+      'id': 'version',
+      'argv': ['version'],
+      'title': 'Version',
+    },
+    {
+      'id': 'secret',
+      'argv': ['secret'],
+      'title': 'Secret',
+      'hidden': 'true',
+    },
+  ],
+};
+
 void main() {
   group('CommandSpec.buildArgs', () {
     final spec = GuiManifestModel.fromTree(_fixture).command('workers.remove')!;
@@ -109,7 +154,10 @@ void main() {
 
     expect(find.text('Example CLI'), findsOneWidget);
     expect(find.text('Workers'), findsOneWidget);
-    expect(find.text('All commands'), findsOneWidget);
+    // Every command is reachable from a main action, so there is no extra
+    // "Commands" section.
+    expect(find.text('Commands'), findsNothing);
+    expect(find.text('Remove worker'), findsNothing, reason: 'group collapsed');
     expect(runner.calls, [
       ['status', '--json'],
     ]);
@@ -125,7 +173,7 @@ void main() {
   testWidgets('destructive command asks before running', (tester) async {
     final runner = _FakeRunner();
     await _pump(tester, runner);
-    await tester.tap(find.text('All commands'));
+    await tester.tap(find.byTooltip('Show Workers commands'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Remove worker').first);
     await tester.pumpAndSettle();
@@ -153,6 +201,52 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Remove worker'));
     await tester.pumpAndSettle();
     expect(runner.calls.last, ['workers', 'remove', 'w1']);
+  });
+
+  testWidgets('a group row opens its main page and shows its commands', (
+    tester,
+  ) async {
+    final runner = _FakeRunner(
+      outputs: {'workers list --json': '[{"id": "w1", "type": "gemini"}]'},
+    );
+    await _pump(tester, runner);
+    await tester.tap(find.text('Workers'));
+    await tester.pumpAndSettle();
+
+    expect(runner.calls.last, ['workers', 'list', '--json']);
+    expect(find.text('gemini'), findsOneWidget);
+    expect(find.text('Remove worker'), findsOneWidget, reason: 'expanded');
+
+    await tester.tap(find.byTooltip('Hide Workers commands'));
+    await tester.pumpAndSettle();
+    expect(find.text('Remove worker'), findsNothing);
+    expect(find.text('gemini'), findsOneWidget, reason: 'page stays open');
+  });
+
+  testWidgets('groups without a main action get a section under Commands', (
+    tester,
+  ) async {
+    final runner = _FakeRunner(manifest: _richManifest);
+    await _pump(tester, runner);
+
+    expect(find.text('Commands'), findsOneWidget);
+    expect(find.text('Config'), findsOneWidget);
+    expect(find.text('Version'), findsOneWidget);
+    expect(find.text('Show config'), findsNothing, reason: 'collapsed');
+
+    await tester.tap(find.text('Config'));
+    await tester.pumpAndSettle();
+    expect(find.text('Show config'), findsOneWidget);
+    expect(find.text('Run tool'), findsNothing, reason: 'subgroup collapsed');
+    expect(runner.calls.map((c) => c.first), [
+      'status',
+    ], reason: 'only the first main action ran; a section header runs nothing');
+
+    await tester.tap(find.text('Tools'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Run tool'));
+    await tester.pumpAndSettle();
+    expect(find.text('Run tool').evaluate().length, greaterThan(1));
   });
 
   testWidgets('commandPages replace generated pages', (tester) async {
