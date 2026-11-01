@@ -69,6 +69,8 @@ command). Every `group` and `parent` reference MUST name a declared group.
 | --- | --- | --- |
 | `id` | id | Unique command id |
 | `group` | id | Optional; the group this command belongs to |
+| `icon` | string | Optional icon name (see §5.3); GUIs show a default for a missing or unknown one |
+| `kind` | `info` \| `action` | What the command does: `info` only reads and reports, `action` does something (the default). GUIs list them in separate sections |
 | `argv` | sequence of strings | Fixed argument prefix, e.g. `["workers", "list"]` |
 | `title`, `description` | string | |
 | `parameters` | Parameter[] | See §5.1 |
@@ -91,6 +93,19 @@ command). Every `group` and `parent` reference MUST name a declared group.
 `format` describes the command's *result* (not the manifest): `text` \|
 `json` \| `jsonLines` \| `nano`. `view`: one of the building blocks
 in §7. Optional `bind` maps paths in the decoded result to view fields (TODO).
+
+### 5.3 Icons
+
+`icon` names are short identifiers. A GUI maps each to its own glyph and falls
+back to a generic "command" glyph for a missing or unknown name, so a manifest
+never needs more than a string. The vocabulary the reference SDK and GUI know:
+`command` (the default), `pulse`, `cpu`, `folder`, `tasks`, `log`, `server`,
+`settings`, `sliders`, `user`, `key`, `lock`, `shield`, `cloud`, `cloudOff`,
+`link`, `unlink`, `play`, `stop`, `pause`, `refresh`, `power`, `trash`, `info`,
+`plus`, `edit`, `check`, `bug`, `test`, `list`, `table`, `chart`, `gauge`,
+`download`, `upload`, `wrench`, `file`, `code`, `book`, `search`, `home`,
+`login`, `logout`, `id`, `tag`, `database`, `package`, `clock`, `bell`, `mail`,
+`globe`, `eye`, `copy`, `rocket`.
 
 ## 6. Screens
 

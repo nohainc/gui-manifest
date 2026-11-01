@@ -124,6 +124,16 @@ final class GuiParameter {
       };
 }
 
+/// What a command does, so a GUI can sort the commands it lists.
+enum GuiCommandKind {
+  /// Reads and reports; safe to run at any time.
+  info,
+
+  /// Does something: changes state, starts or stops things, signs in.
+  /// This is the default.
+  action,
+}
+
 final class GuiCommand {
   const GuiCommand({
     required this.id,
@@ -138,6 +148,8 @@ final class GuiCommand {
     this.requires = const <String>[],
     this.hidden = false,
     this.group,
+    this.icon,
+    this.kind = GuiCommandKind.action,
   });
 
   final String id;
@@ -155,12 +167,20 @@ final class GuiCommand {
   /// Id of the [GuiGroup] this command belongs to.
   final String? group;
 
+  /// Icon name (see [GuiIcons]); a GUI shows its default when missing.
+  final String? icon;
+
+  /// Whether the command reads or does something.
+  final GuiCommandKind kind;
+
   Map<String, Object> toTree() => <String, Object>{
         'id': id,
         'argv': List<Object>.of(argv),
         'title': title,
         if (description != null) 'description': description!,
         if (group != null) 'group': group!,
+        if (icon != null) 'icon': icon!,
+        'kind': kind.name,
         if (destructive) 'destructive': _bool(true),
         if (interactive) 'interactive': _bool(true),
         if (longRunning) 'longRunning': _bool(true),

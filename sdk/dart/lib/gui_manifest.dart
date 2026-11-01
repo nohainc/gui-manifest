@@ -2,6 +2,7 @@
 library;
 
 export 'src/builder.dart';
+export 'src/icons.dart';
 export 'src/model.dart';
 export 'src/negotiation.dart';
 export 'src/spec.dart';

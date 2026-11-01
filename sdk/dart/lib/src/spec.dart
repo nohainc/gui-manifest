@@ -98,6 +98,7 @@ final class CliCommand extends CliNode {
     this.longRunning = false,
     this.requires = const <String>[],
     this.guiHidden = false,
+    this.kind = GuiCommandKind.action,
     super.icon,
     super.navigation,
     super.aliases,
@@ -128,6 +129,11 @@ final class CliCommand extends CliNode {
 
   /// Keeps the command out of the GUI's generic command list.
   final bool guiHidden;
+
+  /// [GuiCommandKind.info] for commands that only read and report,
+  /// [GuiCommandKind.action] (the default) for those that do something. A GUI
+  /// lists them in separate sections.
+  final GuiCommandKind kind;
 }
 
 /// Everything a CLI declares about itself: identity, shared options and the

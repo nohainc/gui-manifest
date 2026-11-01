@@ -57,6 +57,8 @@ GuiManifest manifestFromSpec(CliSpec spec) {
             requires: node.requires,
             hidden: node.guiHidden,
             group: groupId,
+            icon: node.icon,
+            kind: node.kind,
           ),
         );
         if (node.navigation) {

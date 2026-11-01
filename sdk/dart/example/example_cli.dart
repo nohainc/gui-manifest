@@ -23,8 +23,9 @@ CliSpec createSpec() => CliSpec(
           name: 'status',
           title: 'Status',
           description: 'Show status.',
-          icon: 'pulse',
+          icon: GuiIcons.pulse,
           navigation: true,
+          kind: GuiCommandKind.info,
           output:
               const GuiOutput(format: GuiFormat.json, view: GuiView.keyValue),
           handler: (run) {
@@ -38,7 +39,7 @@ CliSpec createSpec() => CliSpec(
           name: 'workers',
           title: 'Workers',
           description: 'Manage workers.',
-          icon: 'cpu',
+          icon: GuiIcons.cpu,
           navigation: true,
           defaultCommand: 'list',
           children: [
@@ -46,6 +47,8 @@ CliSpec createSpec() => CliSpec(
               name: 'list',
               title: 'List workers',
               description: 'List workers.',
+              icon: GuiIcons.list,
+              kind: GuiCommandKind.info,
               output:
                   const GuiOutput(format: GuiFormat.json, view: GuiView.table),
               handler: (run) {
@@ -57,6 +60,7 @@ CliSpec createSpec() => CliSpec(
               name: 'remove',
               title: 'Remove worker',
               description: 'Remove worker.',
+              icon: GuiIcons.trash,
               destructive: true,
               parameters: const [
                 GuiParameter(

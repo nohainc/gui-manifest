@@ -89,6 +89,15 @@ void main() {
       });
     });
 
+    test('commands carry an icon and a kind (action by default)', () {
+      final byId = {for (final c in manifest.commands) c.id: c};
+      expect(byId['status']!.kind, GuiCommandKind.info);
+      expect(byId['status']!.icon, GuiIcons.pulse);
+      expect(byId['workers.list']!.kind, GuiCommandKind.info);
+      expect(byId['workers.remove']!.kind, GuiCommandKind.action);
+      expect(byId['workers.remove']!.icon, GuiIcons.trash);
+    });
+
     test('a group sidebar entry opens its default command', () {
       final nav = manifest.navigation.map((n) => (n.id, n.command)).toList();
       expect(nav, [('status', 'status'), ('workers', 'workers.list')]);
@@ -193,6 +202,47 @@ void main() {
         r'$.groups[0].parent: unknown group "missing"',
       ]);
     });
+  });
+
+  group('command kind and icon', () {
+    const base = '''..
+    manifestVersion 1
+    cli..
+        name x
+        version 1
+    navigation:
+    commands:
+        ..
+            id a
+            argv:
+                a
+            title A
+''';
+
+    /// The command with one more field line.
+    List<String> issues(String field) => validateManifestSource(
+          '$base            $field',
+        ).map((i) => i.toString()).toList();
+
+    test('accept info and action', () {
+      expect(issues('kind info'), isEmpty);
+      expect(issues('kind action'), isEmpty);
+      expect(issues('icon rocket'), isEmpty);
+    });
+
+    test('reject other kinds', () {
+      expect(issues('kind read'), [
+        r'$.commands[0].kind: "read" is not one of info, action',
+      ]);
+    });
+  });
+
+  test('icon names are unique and include the default', () {
+    expect(GuiIcons.all.toSet().length, GuiIcons.all.length);
+    expect(GuiIcons.all, contains(GuiIcons.command));
+    for (final name in GuiIcons.all) {
+      expect(name, matches(RegExp(r'^[a-z][a-zA-Z0-9]*$')), reason: name);
+    }
   });
 
   test('options map to parameters', () {

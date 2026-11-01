@@ -21,6 +21,7 @@ final class GuiMeta {
     this.requires = const <String>[],
     this.hidden = false,
     this.showInNavigation = false,
+    this.kind = GuiCommandKind.action,
   });
 
   final String? title;
@@ -41,6 +42,9 @@ final class GuiMeta {
 
   /// Adds a sidebar entry pointing to this command.
   final bool showInNavigation;
+
+  /// Whether the command only reads ([GuiCommandKind.info]) or does something.
+  final GuiCommandKind kind;
 }
 
 /// Implement on a [Command] to describe it to the GUI.
@@ -89,6 +93,8 @@ GuiManifest buildManifest(
         longRunning: meta.longRunning,
         requires: meta.requires,
         hidden: meta.hidden || command.hidden,
+        icon: meta.icon,
+        kind: meta.kind,
       ),
     );
     if (meta.showInNavigation) {

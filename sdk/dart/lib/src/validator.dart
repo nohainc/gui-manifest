@@ -13,6 +13,7 @@ final class ManifestIssue {
 
 final _id = RegExp(r'^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)*$');
 const _bools = {'true', 'false'};
+const _kindValues = {'info', 'action'};
 const _views = {'form', 'table', 'keyValue', 'card', 'log', 'confirm', 'raw'};
 const _formats = {'text', 'json', 'jsonLines', 'nano'};
 const _kinds = {'option', 'flag', 'positional'};
@@ -165,6 +166,8 @@ List<ManifestIssue> validateManifest(Object root) {
       if (id != null) commandIds.add(id);
       strings(c, 'argv', p, required: true);
       str(c, 'title', p, required: true);
+      str(c, 'icon', p);
+      str(c, 'kind', p, oneOf: _kindValues);
       final group = str(c, 'group', p, pattern: _id);
       if (group != null && !groupIds.contains(group)) {
         issue('$p.group', 'unknown group "$group"');

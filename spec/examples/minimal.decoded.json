@@ -37,6 +37,8 @@
       ],
       "title": "Status",
       "description": "Show status.",
+      "icon": "pulse",
+      "kind": "info",
       "output": {
         "format": "json",
         "view": "keyValue"
@@ -52,6 +54,8 @@
       "title": "List workers",
       "description": "List workers.",
       "group": "workers",
+      "icon": "list",
+      "kind": "info",
       "output": {
         "format": "json",
         "view": "table"
@@ -66,6 +70,8 @@
       "title": "Remove worker",
       "description": "Remove worker.",
       "group": "workers",
+      "icon": "trash",
+      "kind": "action",
       "destructive": "true",
       "parameters": [
         {

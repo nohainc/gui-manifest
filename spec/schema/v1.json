@@ -197,6 +197,15 @@
         },
         "group": {
           "$ref": "#/$defs/id"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "info",
+            "action"
+          ]
         }
       }
     },
