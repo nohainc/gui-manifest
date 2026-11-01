@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'cli_runner.dart';
 import 'command_page.dart';
 import 'manifest.dart';
+import 'result_history.dart';
 import 'settings_page.dart';
 import 'sidebar.dart';
 import 'sidebar_model.dart';
@@ -105,6 +106,9 @@ class _GuiManifestShellState extends State<GuiManifestShell> {
   /// Ids of expanded sidebar rows.
   final _expanded = <String>{};
 
+  /// Every command result of this session; survives page changes and reruns.
+  final _history = ResultHistory();
+
   late final ViewPreferencesStore _store =
       widget.preferencesStore ?? ViewPreferencesStore.memory();
   late GuiViewPreferences _preferences = _store.load();
@@ -135,7 +139,12 @@ class _GuiManifestShellState extends State<GuiManifestShell> {
     if (!_expanded.remove(id)) _expanded.add(id);
   });
 
-  Widget _commandPage(String key, CommandSpec command, {bool autoRun = false}) {
+  Widget _commandPage(
+    GuiManifestModel m,
+    String key,
+    CommandSpec command, {
+    bool autoRun = false,
+  }) {
     final custom = widget.commandPages[command.id];
     if (custom != null) {
       return KeyedSubtree(
@@ -147,6 +156,9 @@ class _GuiManifestShellState extends State<GuiManifestShell> {
       key: ValueKey(key),
       command: command,
       runner: widget.runner,
+      programName: m.cli.name,
+      history: _history,
+      outputFormat: _preferences.outputFormat,
       autoRun: autoRun,
     );
   }
@@ -164,9 +176,15 @@ class _GuiManifestShellState extends State<GuiManifestShell> {
       if (entry.builtin != null) {
         return widget.builtins[entry.builtin]!(context, widget.runner, m);
       }
-      return _commandPage(key, m.command(entry.command!)!, autoRun: true);
+      return _commandPage(m, key, m.command(entry.command!)!, autoRun: true);
     }
-    return _commandPage(key, m.command(key.substring(4))!);
+    return _commandPage(m, key, m.command(key.substring(4))!);
+  }
+
+  @override
+  void dispose() {
+    _history.dispose();
+    super.dispose();
   }
 
   @override

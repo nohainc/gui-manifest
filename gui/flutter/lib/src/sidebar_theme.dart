@@ -90,9 +90,10 @@ abstract final class GuiSidebarMetrics {
   static const double threadFontSize = 11.5;
   static const double spaceRadius = 8;
   static const double threadRadius = 6;
-  static const double folderIconSize = 16;
+  static const double iconSize = 16;
+  static const double threadIconSize = 14;
 
-  /// Space row: left padding, gap between folder icon and name.
+  /// Space row: left padding, gap between icon and name.
   static const double rowPadding = 8;
   static const double iconGap = 8;
 

@@ -2,22 +2,35 @@ import 'package:flutter/material.dart';
 
 import 'cli_runner.dart';
 import 'manifest.dart';
-import 'output_view.dart';
+import 'output_format.dart';
+import 'result_card.dart';
+import 'result_history.dart';
 
-/// Generated page for one command: description, parameter form, command line
-/// preview, run/cancel and the result.
+/// Generated page for one command: description, the command line, the
+/// parameter form, Run/Cancel and every result so far.
+///
+/// Results are kept in [history], so running again or opening another page
+/// never clears an earlier result.
 class CommandPage extends StatefulWidget {
   const CommandPage({
     super.key,
     required this.command,
     required this.runner,
+    required this.programName,
+    required this.history,
+    this.outputFormat = OutputFormatOption.nano,
     this.autoRun = false,
   });
 
   final CommandSpec command;
   final CliRunner runner;
 
-  /// Runs immediately when the command needs no input and is safe.
+  /// The CLI's name, shown in command lines (never its install path).
+  final String programName;
+  final ResultHistory history;
+  final OutputFormatOption outputFormat;
+
+  /// Runs once on first open when the command needs no input and is safe.
   final bool autoRun;
 
   @override
@@ -27,9 +40,6 @@ class CommandPage extends StatefulWidget {
 class _CommandPageState extends State<CommandPage> {
   final _values = <String, String>{};
   final _controllers = <String, TextEditingController>{};
-  CliRun? _running;
-  CliResult? _result;
-  String? _error;
 
   CommandSpec get _command => widget.command;
 
@@ -50,7 +60,10 @@ class _CommandPageState extends State<CommandPage> {
         !_command.destructive &&
         !_command.interactive &&
         !_command.parameters.any((p) => p.required);
-    if (widget.autoRun && safe) {
+    if (widget.autoRun &&
+        safe &&
+        widget.history.resultsOf(_command.id).isEmpty &&
+        !widget.history.isRunning(_command.id)) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _run());
     }
   }
@@ -60,7 +73,6 @@ class _CommandPageState extends State<CommandPage> {
     for (final c in _controllers.values) {
       c.dispose();
     }
-    _running?.cancel();
     super.dispose();
   }
 
@@ -72,28 +84,9 @@ class _CommandPageState extends State<CommandPage> {
     }
   }
 
-  /// Preview with secrets masked.
-  String _preview() {
-    final masked = {
-      for (final p in _command.parameters)
-        p.name: p.isSecret && (_values[p.name] ?? '').isNotEmpty
-            ? '••••'
-            : _values[p.name] ?? '',
-    };
-    try {
-      return [
-        widget.runner.executable,
-        ..._command.buildArgs(masked),
-      ].join(' ');
-    } on ArgumentError catch (e) {
-      return '${[widget.runner.executable, ..._command.argv].join(' ')} '
-          '… (${e.message})';
-    }
-  }
-
   Future<void> _run() async {
     final args = _args();
-    if (args == null || _running != null) return;
+    if (args == null || widget.history.isRunning(_command.id)) return;
     if (_command.destructive) {
       final ok = await showDialog<bool>(
         context: context,
@@ -114,17 +107,7 @@ class _CommandPageState extends State<CommandPage> {
       );
       if (ok != true || !mounted) return;
     }
-    final run = widget.runner.start(args);
-    setState(() {
-      _running = run;
-      _error = null;
-    });
-    final result = await run.result;
-    if (!mounted) return;
-    setState(() {
-      _running = null;
-      _result = result;
-    });
+    await widget.history.track(_command.id, widget.runner.start(args));
   }
 
   Widget _field(CommandParameter p) {
@@ -171,97 +154,114 @@ class _CommandPageState extends State<CommandPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final running = _running != null;
-    final canRun = _args() != null && !running;
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(_command.title, style: theme.textTheme.headlineSmall),
-          if (_command.description != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              _command.description!,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-          if (_command.interactive) ...[
-            const SizedBox(height: 12),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.keyboard_outlined),
-                title: const Text('This command may ask for input'),
-                subtitle: Text(
-                  'Run it in a terminal if it waits for a '
-                  'prompt: ${_command.argv.join(' ')}',
+    final mono = theme.textTheme.bodyMedium?.copyWith(fontFamily: 'monospace');
+    return ListenableBuilder(
+      listenable: widget.history,
+      builder: (context, _) {
+        final running = widget.history.isRunning(_command.id);
+        final results = widget.history.resultsOf(_command.id);
+        final canRun = _args() != null && !running;
+        return ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            Text(_command.title, style: theme.textTheme.headlineSmall),
+            if (_command.description != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                _command.description!,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-            ),
-          ],
-          const SizedBox(height: 16),
-          for (final p in _command.parameters) ...[
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 480),
-              child: _field(p),
-            ),
+            ],
+            // The command line follows the description and updates as the
+            // form is filled in. Results repeat the executed line.
             const SizedBox(height: 12),
-          ],
-          Row(
-            children: [
-              FilledButton.icon(
-                style: _command.destructive
-                    ? FilledButton.styleFrom(
-                        backgroundColor: theme.colorScheme.error,
-                        foregroundColor: theme.colorScheme.onError,
-                      )
-                    : null,
-                onPressed: canRun ? _run : null,
-                icon: running
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.play_arrow),
-                label: Text(running ? 'Running…' : 'Run'),
+            SelectableText.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '\$ ',
+                    style: TextStyle(color: theme.colorScheme.primary),
+                  ),
+                  TextSpan(
+                    text: _command.preview(
+                      _values,
+                      program: widget.programName,
+                    ),
+                  ),
+                ],
               ),
-              if (running) ...[
-                const SizedBox(width: 8),
-                OutlinedButton(
-                  onPressed: () => _running?.cancel(),
-                  child: const Text('Cancel'),
-                ),
-              ],
-              const SizedBox(width: 16),
-              Expanded(
-                child: SelectableText(
-                  _preview(),
-                  maxLines: 1,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontFamily: 'monospace',
+              key: const ValueKey('command-line'),
+              style: mono,
+            ),
+            if (_command.interactive) ...[
+              const SizedBox(height: 12),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.keyboard_outlined),
+                  title: const Text('This command may ask for input'),
+                  subtitle: Text(
+                    'Run it in a terminal if it waits for a prompt: '
+                    '${widget.programName} ${_command.argv.join(' ')}',
                   ),
                 ),
               ),
             ],
-          ),
-          if (_error != null)
-            Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-          const SizedBox(height: 16),
-          Expanded(
-            child: _result == null
-                ? const SizedBox.shrink()
-                : OutputView(
-                    key: ObjectKey(_result),
-                    command: _command,
-                    result: _result!,
-                    executable: widget.runner.executable,
+            const SizedBox(height: 16),
+            for (final p in _command.parameters) ...[
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: _field(p),
+              ),
+              const SizedBox(height: 12),
+            ],
+            Row(
+              children: [
+                FilledButton.icon(
+                  style: _command.destructive
+                      ? FilledButton.styleFrom(
+                          backgroundColor: theme.colorScheme.error,
+                          foregroundColor: theme.colorScheme.onError,
+                        )
+                      : null,
+                  onPressed: canRun ? _run : null,
+                  icon: running
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.play_arrow),
+                  label: Text(running ? 'Running…' : 'Run'),
+                ),
+                if (running) ...[
+                  const SizedBox(width: 8),
+                  OutlinedButton(
+                    onPressed: () => widget.history.cancel(_command.id),
+                    child: const Text('Cancel'),
                   ),
-          ),
-        ],
-      ),
+                ],
+                const Spacer(),
+                if (results.isNotEmpty)
+                  TextButton(
+                    onPressed: () => widget.history.clear(_command.id),
+                    child: const Text('Clear results'),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            for (final result in results)
+              ResultCard(
+                key: ObjectKey(result),
+                command: _command,
+                result: result,
+                program: widget.programName,
+                format: widget.outputFormat,
+              ),
+          ],
+        );
+      },
     );
   }
 }

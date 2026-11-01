@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'folder_icon.dart';
+import 'icons.dart';
 import 'sidebar_model.dart';
 import 'sidebar_theme.dart';
 
@@ -9,11 +9,16 @@ const settingsPageKey = 'settings';
 
 /// The sidebar, styled like the Syntila app's Space tree.
 ///
-/// - A group of commands is a **Space**: folder icon (open when its commands
-///   are shown), 12.5px name.
+/// - A group of commands is a **Space**: its icon and 12.5px name, with a
+///   chevron showing whether its commands are listed.
 /// - The commands inside a group are its **Threads**: 11.5px, indented under
-///   the name.
+///   the name, each with its own icon.
 /// - Commands that belong to no group are Spaces without Threads.
+/// - Under the main actions, commands are split into `INFO` (they only read)
+///   and `ACTIONS` (they do something).
+///
+/// Every row shows the command's manifest icon, or a generic command icon when
+/// the manifest names none.
 ///
 /// A row is highlighted while selected or hovered. Tapping a group opens its
 /// main page and shows its commands; tapping it again hides them.
@@ -63,11 +68,11 @@ class GuiSidebar extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
                 children: [
                   for (final entry in model.primary) _row(context, entry, 0),
-                  if (model.more.isNotEmpty) ...[
+                  for (final section in model.sections) ...[
                     Padding(
                       padding: const EdgeInsets.fromLTRB(10, 14, 8, 6),
                       child: Text(
-                        'COMMANDS',
+                        section.label,
                         style: TextStyle(
                           fontSize: GuiSidebarMetrics.labelFontSize,
                           fontWeight: FontWeight.w700,
@@ -76,7 +81,8 @@ class GuiSidebar extends StatelessWidget {
                         ),
                       ),
                     ),
-                    for (final entry in model.more) _row(context, entry, 0),
+                    for (final entry in section.entries)
+                      _row(context, entry, 0),
                   ],
                 ],
               ),
@@ -193,24 +199,26 @@ class GuiSidebar extends StatelessWidget {
           child: Row(
             children: [
               if (isSpace) ...[
-                GuiFolderIcon(
-                  isExpanded: entry.isExpandable && open,
-                  size: GuiSidebarMetrics.folderIconSize,
+                Icon(
+                  iconFor(entry.icon),
+                  size: GuiSidebarMetrics.iconSize,
                   color: theme.textColor,
                 ),
                 const SizedBox(width: GuiSidebarMetrics.iconGap),
               ] else
                 SizedBox(
                   width: GuiSidebarMetrics.threadLeading,
-                  // A sub-group shows whether it is open; plain commands
-                  // leave the slot empty.
-                  child: entry.isExpandable
-                      ? Icon(
-                          open ? Icons.expand_more : Icons.chevron_right,
-                          size: 14,
-                          color: theme.textColor,
-                        )
-                      : null,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 2),
+                      child: Icon(
+                        iconFor(entry.icon),
+                        size: GuiSidebarMetrics.threadIconSize,
+                        color: theme.textColor,
+                      ),
+                    ),
+                  ),
                 ),
               Expanded(
                 child: Text(
@@ -220,6 +228,12 @@ class GuiSidebar extends StatelessWidget {
                   style: textStyle,
                 ),
               ),
+              if (entry.isExpandable)
+                Icon(
+                  open ? Icons.expand_less : Icons.expand_more,
+                  size: 16,
+                  color: theme.labelColor,
+                ),
             ],
           ),
         ),

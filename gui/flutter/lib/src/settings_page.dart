@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'output_format.dart';
 import 'view_preferences.dart';
 
 /// Device-local view settings. Changes apply immediately.
@@ -72,6 +73,37 @@ class SettingsPage extends StatelessWidget {
                 selected: {preferences.textSize},
                 onSelectionChanged: (selection) =>
                     onChanged(preferences.copyWith(textSize: selection.first)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Output format', style: TextStyle(fontSize: 14)),
+                    const SizedBox(height: 2),
+                    Text(
+                      'How command results are written as text.',
+                      style: TextStyle(fontSize: 12, color: muted),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              SegmentedButton<OutputFormatOption>(
+                key: const ValueKey('setting-output-format'),
+                showSelectedIcon: false,
+                segments: [
+                  for (final option in OutputFormatOption.values)
+                    ButtonSegment(value: option, label: Text(option.label)),
+                ],
+                selected: {preferences.outputFormat},
+                onSelectionChanged: (selection) => onChanged(
+                  preferences.copyWith(outputFormat: selection.first),
+                ),
               ),
             ],
           ),

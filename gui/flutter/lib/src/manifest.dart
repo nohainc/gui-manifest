@@ -94,6 +94,10 @@ final class CommandParameter {
   String get displayLabel => label ?? name;
 }
 
+/// What a command does: [info] only reads and reports, [action] does
+/// something (and is the default for manifests that do not say).
+enum CommandKind { info, action }
+
 final class CommandSpec {
   const CommandSpec({
     required this.id,
@@ -109,6 +113,8 @@ final class CommandSpec {
     this.requires = const [],
     this.hidden = false,
     this.group,
+    this.icon,
+    this.kind = CommandKind.action,
   });
 
   final String id;
@@ -126,6 +132,42 @@ final class CommandSpec {
 
   /// Id of the [GroupSpec] this command belongs to.
   final String? group;
+
+  /// Icon name from the manifest vocabulary; null or unknown shows the default.
+  final String? icon;
+
+  final CommandKind kind;
+
+  /// The command line as the user will read it, e.g. `syntila workers remove
+  /// w1`. [program] is the CLI's name (never its install path). A missing
+  /// required value shows as `<name>`, secrets as `••••`, and values with
+  /// spaces are quoted.
+  String preview(Map<String, String> values, {required String program}) {
+    String quote(String v) => RegExp(r'^[\w@%+=:,./-]+$').hasMatch(v)
+        ? v
+        : "'${v.replaceAll("'", r"'\''")}'";
+    final options = <String>[];
+    final positionals = <String>[];
+    for (final p in parameters) {
+      final raw = values[p.name]?.trim() ?? '';
+      if (p.kind == 'flag') {
+        if (raw == 'true') options.add('--${p.name}');
+        continue;
+      }
+      final String? shown = raw.isNotEmpty
+          ? (p.isSecret ? '••••' : quote(raw))
+          : p.required
+          ? '<${p.name}>'
+          : null;
+      if (shown == null) continue;
+      if (p.kind == 'positional') {
+        positionals.add(shown);
+      } else {
+        options.addAll(['--${p.name}', shown]);
+      }
+    }
+    return [program, ...argv, ...options, ...positionals].join(' ');
+  }
 
   /// Builds the argument list for [values] (parameter name → entered text).
   ///
@@ -269,5 +311,7 @@ CommandSpec _command(Map<String, Object> c) {
     requires: _strings(c, 'requires'),
     hidden: _flag(c, 'hidden'),
     group: c['group'] as String?,
+    icon: c['icon'] as String?,
+    kind: c['kind'] == 'info' ? CommandKind.info : CommandKind.action,
   );
 }

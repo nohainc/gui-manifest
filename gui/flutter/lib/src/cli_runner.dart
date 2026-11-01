@@ -7,14 +7,15 @@ import 'package:nanomarkup/nanomarkup.dart';
 import 'manifest.dart';
 
 final class CliResult {
-  const CliResult({
+  CliResult({
     required this.args,
     required this.exitCode,
     required this.stdout,
     required this.stderr,
     required this.duration,
     this.cancelled = false,
-  });
+    DateTime? finishedAt,
+  }) : finishedAt = finishedAt ?? DateTime.now();
 
   final List<String> args;
   final int exitCode;
@@ -22,6 +23,9 @@ final class CliResult {
   final String stderr;
   final Duration duration;
   final bool cancelled;
+
+  /// When the command ended.
+  final DateTime finishedAt;
 
   bool get ok => exitCode == 0 && !cancelled;
 }
