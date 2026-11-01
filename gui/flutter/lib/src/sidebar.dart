@@ -12,13 +12,11 @@ const settingsPageKey = 'settings';
 /// - A group of commands is a **Space**: its icon and 12.5px name, with a
 ///   chevron showing whether its commands are listed.
 /// - The commands inside a group are its **Threads**: 11.5px, indented under
-///   the name, each with its own icon.
+///   the name without a command icon.
 /// - Commands that belong to no group are Spaces without Threads.
-/// - Under the main actions, commands are split into `INFO` (they only read)
-///   and `ACTIONS` (they do something).
+/// - Other commands are grouped by their optional manifest section label.
 ///
-/// Every row shows the command's manifest icon, or a generic command icon when
-/// the manifest names none.
+/// Top-level rows show their manifest icon or a generic command icon.
 ///
 /// A row is highlighted while selected or hovered. Tapping a group opens its
 /// main page and shows its commands; tapping it again hides them.
@@ -206,20 +204,7 @@ class GuiSidebar extends StatelessWidget {
                 ),
                 const SizedBox(width: GuiSidebarMetrics.iconGap),
               ] else
-                SizedBox(
-                  width: GuiSidebarMetrics.threadLeading,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 2),
-                      child: Icon(
-                        iconFor(entry.icon),
-                        size: GuiSidebarMetrics.threadIconSize,
-                        color: theme.textColor,
-                      ),
-                    ),
-                  ),
-                ),
+                const SizedBox(width: GuiSidebarMetrics.threadLeading),
               Expanded(
                 child: Text(
                   entry.label,

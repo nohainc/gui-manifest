@@ -104,6 +104,106 @@ void main() {
     });
   });
 
+  test('custom section is serialized and validated', () {
+    final spec = CliSpec(
+      name: 'sample',
+      description: 'Sample',
+      version: '1',
+      nodes: [
+        CliCommand(
+            name: 'check',
+            title: 'Check',
+            description: 'Check',
+            section: 'Diagnostics',
+            handler: (_) async => 0)
+      ],
+    );
+    final manifest = manifestFromSpec(spec);
+    expect(manifest.commands.single.toTree()['section'], 'Diagnostics');
+    expect(validateManifestSource(encodeManifest(manifest)), isEmpty);
+    final invalid = GuiManifest(
+      cli: _cli,
+      navigation: const [],
+      commands: [
+        const GuiCommand(id: 'x', argv: ['x'], title: 'X', section: '  ')
+      ],
+    );
+    expect(
+        validateManifestSource(encodeManifest(invalid))
+            .map((e) => e.toString()),
+        contains(contains('section')));
+  });
+
+  test('group section is serialized and validated', () {
+    final spec =
+        CliSpec(name: 'sample', description: 'Sample', version: '1', nodes: [
+      CliGroup(
+          name: 'config',
+          title: 'Config',
+          description: 'Config',
+          section: 'WORKSPACE',
+          children: [
+            CliCommand(
+                name: 'show',
+                title: 'Show',
+                description: 'Show',
+                section: 'OTHER',
+                handler: (_) async => 0),
+          ]),
+    ]);
+    final manifest = manifestFromSpec(spec);
+    expect(manifest.groups.single.toTree()['section'], 'WORKSPACE');
+    expect(validateManifestSource(encodeManifest(manifest)), isEmpty);
+    final invalid = GuiManifest(
+        cli: _cli,
+        navigation: const [],
+        commands: const [],
+        groups: [const GuiGroup(id: 'config', label: 'Config', section: '  ')]);
+    expect(
+        validateManifestSource(encodeManifest(invalid))
+            .map((e) => e.toString()),
+        contains(contains('section')));
+  });
+
+  test('stdin secret metadata and CLI flag are wired without an argv secret',
+      () async {
+    var passedFlag = false;
+    final spec =
+        CliSpec(name: 'sample', description: 'Sample', version: '1', nodes: [
+      CliCommand(
+          name: 'login',
+          title: 'Login',
+          description: 'Login',
+          parameters: const [
+            GuiParameter(
+                name: 'secret',
+                kind: GuiParamKind.option,
+                type: GuiParamType.secret,
+                required: true,
+                stdinFlag: 'password-stdin'),
+            GuiParameter(
+                name: 'password-stdin',
+                kind: GuiParamKind.flag,
+                type: GuiParamType.boolean,
+                hidden: true),
+          ],
+          handler: (run) {
+            passedFlag = run.flag('password-stdin');
+            return 0;
+          }),
+    ]);
+    final manifest = manifestFromSpec(spec);
+    expect(validateManifestSource(encodeManifest(manifest)), isEmpty);
+    final parameters = manifest.commands.single.parameters;
+    expect(parameters.single.stdinFlag, 'password-stdin');
+    final out = StringBuffer(), err = StringBuffer();
+    expect(
+        await runCli(spec, ['login', '--password-stdin'], out: out, err: err),
+        0);
+    expect(passedFlag, isTrue);
+    expect(flatUsage(spec), isNot(contains('--secret')));
+  });
+
   test('fixture is valid', () {
     expect(
       validateManifestSource(

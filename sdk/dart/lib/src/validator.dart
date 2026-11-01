@@ -16,7 +16,7 @@ const _bools = {'true', 'false'};
 const _kindValues = {'info', 'action'};
 const _views = {'form', 'table', 'keyValue', 'card', 'log', 'confirm', 'raw'};
 const _formats = {'text', 'json', 'jsonLines', 'nano'};
-const _kinds = {'option', 'flag', 'positional'};
+const _kinds = {'option', 'flag', 'positional', 'stdin'};
 const _types = {
   'string', 'integer', 'number', 'boolean', 'enum', 'path', 'secret', //
 };
@@ -143,6 +143,10 @@ List<ManifestIssue> validateManifest(Object root) {
         if (g == null) continue;
         str(g, 'id', p, required: true, pattern: _id);
         str(g, 'label', p, required: true);
+        final section = str(g, 'section', p);
+        if (section != null && section.trim().isEmpty) {
+          issue('$p.section', 'must not be empty');
+        }
         final parent = str(g, 'parent', p, pattern: _id);
         if (parent != null && !groupIds.contains(parent)) {
           issue('$p.parent', 'unknown group "$parent"');
@@ -167,6 +171,10 @@ List<ManifestIssue> validateManifest(Object root) {
       strings(c, 'argv', p, required: true);
       str(c, 'title', p, required: true);
       str(c, 'icon', p);
+      final section = str(c, 'section', p);
+      if (section != null && section.trim().isEmpty) {
+        issue('$p.section', 'must not be empty');
+      }
       str(c, 'kind', p, oneOf: _kindValues);
       final group = str(c, 'group', p, pattern: _id);
       if (group != null && !groupIds.contains(group)) {
@@ -190,6 +198,7 @@ List<ManifestIssue> validateManifest(Object root) {
       }
       if (c['parameters'] != null) {
         final params = list(c['parameters'], '$p.parameters');
+        var stdinCount = 0;
         for (final (j, rawParam) in (params ?? const <Object>[]).indexed) {
           final pp = '$p.parameters[$j]';
           final param = map(rawParam, pp);
@@ -197,6 +206,23 @@ List<ManifestIssue> validateManifest(Object root) {
           str(param, 'name', pp, required: true);
           str(param, 'kind', pp, required: true, oneOf: _kinds);
           final type = str(param, 'type', pp, required: true, oneOf: _types);
+          final stdinFlag = str(param, 'stdinFlag', pp,
+              pattern: RegExp(r'^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$'));
+          if (stdinFlag != null) {
+            stdinCount++;
+            if (stdinCount > 1) {
+              issue('$pp.stdinFlag', 'only one stdin secret is supported');
+            }
+          }
+          if (stdinFlag != null &&
+              (type != 'secret' ||
+                  param['kind'] != 'stdin' ||
+                  param['multiple'] == 'true')) {
+            issue('$pp.stdinFlag', 'requires a single secret option');
+          }
+          if (param['kind'] == 'stdin' && stdinFlag == null) {
+            issue('$pp.stdinFlag', 'is required for stdin parameters');
+          }
           str(param, 'required', pp, oneOf: _bools);
           str(param, 'multiple', pp, oneOf: _bools);
           strings(param, 'values', pp);

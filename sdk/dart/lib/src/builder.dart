@@ -22,6 +22,7 @@ final class GuiMeta {
     this.hidden = false,
     this.showInNavigation = false,
     this.kind = GuiCommandKind.action,
+    this.section,
   });
 
   final String? title;
@@ -45,6 +46,9 @@ final class GuiMeta {
 
   /// Whether the command only reads ([GuiCommandKind.info]) or does something.
   final GuiCommandKind kind;
+
+  /// Optional sidebar section label.
+  final String? section;
 }
 
 /// Implement on a [Command] to describe it to the GUI.
@@ -95,6 +99,7 @@ GuiManifest buildManifest(
         hidden: meta.hidden || command.hidden,
         icon: meta.icon,
         kind: meta.kind,
+        section: meta.section,
       ),
     );
     if (meta.showInNavigation) {

@@ -32,6 +32,7 @@ final class GroupSpec {
     this.icon,
     this.description,
     this.parent,
+    this.section,
   });
 
   final String id;
@@ -41,6 +42,9 @@ final class GroupSpec {
 
   /// Id of the enclosing group, if any.
   final String? parent;
+
+  /// Sidebar section for the entire root group.
+  final String? section;
 }
 
 final class NavEntry {
@@ -74,11 +78,12 @@ final class CommandParameter {
     this.multiple = false,
     this.label,
     this.help,
+    this.stdinFlag,
   });
 
   final String name;
 
-  /// `option`, `flag` or `positional`.
+  /// `option`, `flag`, `positional` or `stdin`.
   final String kind;
 
   /// `string`, `integer`, `number`, `boolean`, `enum`, `path` or `secret`.
@@ -89,6 +94,8 @@ final class CommandParameter {
   final bool multiple;
   final String? label;
   final String? help;
+
+  final String? stdinFlag;
 
   bool get isSecret => type == 'secret';
   String get displayLabel => label ?? name;
@@ -115,6 +122,7 @@ final class CommandSpec {
     this.group,
     this.icon,
     this.kind = CommandKind.action,
+    this.section,
   });
 
   final String id;
@@ -138,6 +146,9 @@ final class CommandSpec {
 
   final CommandKind kind;
 
+  /// Optional sidebar section label.
+  final String? section;
+
   /// The command line as the user will read it, e.g. `syntila workers remove
   /// w1`. [program] is the CLI's name (never its install path). A missing
   /// required value shows as `<name>`, secrets as `••••`, and values with
@@ -150,6 +161,10 @@ final class CommandSpec {
     final positionals = <String>[];
     for (final p in parameters) {
       final raw = values[p.name]?.trim() ?? '';
+      if (p.stdinFlag != null) {
+        if (raw.isNotEmpty) options.add('--${p.stdinFlag}');
+        continue;
+      }
       if (p.kind == 'flag') {
         if (raw == 'true') options.add('--${p.name}');
         continue;
@@ -178,6 +193,16 @@ final class CommandSpec {
     final positionals = <String>[];
     for (final p in parameters) {
       final value = values[p.name]?.trim() ?? '';
+      if (p.stdinFlag != null) {
+        if (value.isEmpty && p.required) {
+          throw ArgumentError('${p.displayLabel} is required');
+        }
+        if (value.contains('\n') || value.contains('\r')) {
+          throw ArgumentError('${p.displayLabel} must be a single line');
+        }
+        if (value.isNotEmpty) options.add('--${p.stdinFlag}');
+        continue;
+      }
       if (p.kind == 'flag') {
         if (value == 'true') options.add('--${p.name}');
         continue;
@@ -250,6 +275,7 @@ final class GuiManifestModel {
             icon: g['icon'] as String?,
             description: g['description'] as String?,
             parent: g['parent'] as String?,
+            section: g['section'] as String?,
           ),
       ],
     );
@@ -293,6 +319,7 @@ CommandSpec _command(Map<String, Object> c) {
           in (c['parameters'] as List? ?? const []).cast<Map<String, Object>>())
         CommandParameter(
           name: p['name'] as String,
+          stdinFlag: p['stdinFlag'] as String?,
           kind: p['kind'] as String,
           type: p['type'] as String,
           required: _flag(p, 'required'),
@@ -313,5 +340,6 @@ CommandSpec _command(Map<String, Object> c) {
     group: c['group'] as String?,
     icon: c['icon'] as String?,
     kind: c['kind'] == 'info' ? CommandKind.info : CommandKind.action,
+    section: c['section'] as String?,
   );
 }

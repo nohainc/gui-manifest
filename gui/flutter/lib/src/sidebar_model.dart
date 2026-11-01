@@ -44,9 +44,8 @@ final class SidebarSection {
   Iterable<String> get keys => entries.expand((e) => e.keys);
 }
 
-/// The sidebar as data: [primary] rows are the CLI's main actions, [sections]
-/// hold every other command, split into what only reads (`INFO`) and what
-/// does something (`ACTIONS`).
+/// The sidebar as data: navigation and unsectioned commands appear first;
+/// [sections] are supplied by command metadata.
 final class SidebarModel {
   const SidebarModel({required this.primary, required this.sections});
 
@@ -88,49 +87,23 @@ final class SidebarModel {
 
 /// Builds the sidebar from a manifest.
 ///
-/// A navigation entry whose id is the group of the command it opens becomes
-/// one expandable row: its label opens that command and the rest of the
-/// group's commands sit under it. Every other command goes under one of two
-/// sections by its [CommandKind]: `INFO` for commands that only read and
-/// `ACTIONS` for those that do something. A group with commands of both kinds
-/// appears in both, holding the matching ones. When no command is `info` (a
-/// manifest that does not classify) there is a single `COMMANDS` section.
-/// Commands marked hidden never appear and a command that is already a main
-/// action is not repeated.
+/// Navigation groups retain their children; remaining commands are grouped
+/// by their optional section label, or placed at the top when it is absent.
 SidebarModel buildSidebar(
   GuiManifestModel manifest, {
   bool Function(NavEntry entry)? navVisible,
 }) {
   final nav = [
     for (final n in manifest.navigation)
-      if (navVisible?.call(n) ?? true) n,
+      if ((navVisible?.call(n) ?? true) &&
+          (n.command == null || manifest.command(n.command!)?.hidden == false))
+        n,
   ];
   final navTargets = {
     for (final n in nav)
       if (n.command != null) n.command!,
   };
   bool listed(CommandSpec c) => !c.hidden && !navTargets.contains(c.id);
-
-  final usedGroups = <String>{};
-  final primary = <SidebarEntry>[];
-  for (final n in nav) {
-    final command = n.command == null ? null : manifest.command(n.command!);
-    final groupId = command?.group;
-    final group = groupId == null ? null : manifest.group(groupId);
-    final isGroupEntry = group != null && group.id == n.id;
-    if (isGroupEntry) usedGroups.add(group.id);
-    primary.add(
-      SidebarEntry(
-        id: 'nav:${n.id}',
-        label: n.label,
-        icon: n.icon,
-        selectKey: 'nav:${n.id}',
-        children: isGroupEntry
-            ? _childrenOf(manifest, group.id, (c) => listed(c), '')
-            : const [],
-      ),
-    );
-  }
 
   String rootOf(String groupId) {
     var current = groupId;
@@ -143,13 +116,49 @@ SidebarModel buildSidebar(
     return current;
   }
 
-  /// The commands outside the main actions that match [accept], grouped.
-  List<SidebarEntry> others(bool Function(CommandSpec) accept, String tag) {
-    bool wanted(CommandSpec c) => listed(c) && accept(c);
+  final usedGroups = <String>{};
+  final primary = <SidebarEntry>[];
+  final sectionNav = <String, List<SidebarEntry>>{};
+  for (final n in nav) {
+    final command = n.command == null ? null : manifest.command(n.command!);
+    final groupId = command?.group;
+    final group = groupId == null ? null : manifest.group(groupId);
+    final isGroupEntry = group != null && group.id == n.id;
+    if (isGroupEntry) usedGroups.add(group.id);
+    final entry = SidebarEntry(
+      id: 'nav:${n.id}',
+      label: n.label,
+      icon: n.icon,
+      selectKey: 'nav:${n.id}',
+      children: isGroupEntry
+          ? _childrenOf(manifest, group.id, (c) => listed(c), '')
+          : const [],
+    );
+    final section = isGroupEntry
+        ? manifest.group(rootOf(group.id))?.section
+        : null;
+    if (section == null) {
+      primary.add(entry);
+    } else {
+      (sectionNav[section] ??= []).add(entry);
+    }
+  }
+
+  // A root group owns placement for every descendant, even when an
+  // individual command or nested group declares a different section.
+  String? sectionOf(CommandSpec command) {
+    final groupId = command.group;
+    if (groupId == null || manifest.group(groupId) == null) {
+      return command.section;
+    }
+    return manifest.group(rootOf(groupId))?.section;
+  }
+
+  List<SidebarEntry> entriesFor(String? section) {
     final entries = <SidebarEntry>[];
     final seenRoots = <String>{};
     for (final c in manifest.commands) {
-      if (!wanted(c)) continue;
+      if (!listed(c) || sectionOf(c) != section) continue;
       final groupId = c.group;
       if (groupId == null || manifest.group(groupId) == null) {
         entries.add(_leaf(c));
@@ -157,27 +166,30 @@ SidebarModel buildSidebar(
       }
       final root = rootOf(groupId);
       if (usedGroups.contains(root) || !seenRoots.add(root)) continue;
-      final section = _section(manifest, manifest.group(root)!, wanted, tag);
-      if (section != null) entries.add(section);
+      final group = _section(manifest, manifest.group(root)!, listed, '');
+      if (group != null) entries.add(group);
     }
     return entries;
   }
 
-  final info = others((c) => c.kind == CommandKind.info, 'info');
-  final sections = info.isEmpty
-      ? [SidebarSection(label: 'COMMANDS', entries: others((_) => true, 'all'))]
-      : [
-          SidebarSection(label: 'INFO', entries: info),
-          SidebarSection(
-            label: 'ACTIONS',
-            entries: others((c) => c.kind == CommandKind.action, 'action'),
-          ),
-        ];
+  primary.addAll(entriesFor(null));
+  final labels = <String>{...sectionNav.keys};
+  for (final c in manifest.commands) {
+    if (!listed(c)) continue;
+    if (c.group != null && usedGroups.contains(rootOf(c.group!))) continue;
+    final section = sectionOf(c);
+    if (section != null) labels.add(section);
+  }
   return SidebarModel(
     primary: primary,
     sections: [
-      for (final s in sections)
-        if (s.entries.isNotEmpty) s,
+      for (final label in labels)
+        if ((sectionNav[label]?.isNotEmpty ?? false) ||
+            entriesFor(label).isNotEmpty)
+          SidebarSection(
+            label: label,
+            entries: [...?sectionNav[label], ...entriesFor(label)],
+          ),
     ],
   );
 }

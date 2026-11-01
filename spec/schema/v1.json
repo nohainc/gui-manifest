@@ -201,6 +201,7 @@
         "icon": {
           "type": "string"
         },
+        "section": { "type": "string", "pattern": "\\S" },
         "kind": {
           "enum": [
             "info",
@@ -224,7 +225,8 @@
           "enum": [
             "option",
             "flag",
-            "positional"
+            "positional",
+            "stdin"
           ]
         },
         "type": {
@@ -238,6 +240,7 @@
             "secret"
           ]
         },
+        "stdinFlag": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$" },
         "required": {
           "enum": [
             "true",
@@ -292,7 +295,8 @@
         },
         "parent": {
           "$ref": "#/$defs/id"
-        }
+        },
+        "section": { "type": "string", "pattern": "\\S" }
       }
     }
   }

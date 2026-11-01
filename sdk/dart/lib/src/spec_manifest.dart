@@ -21,6 +21,7 @@ GuiManifest manifestFromSpec(CliSpec spec) {
             icon: node.icon,
             description: node.description,
             parent: groupId,
+            section: node.section,
           ),
         );
         if (node.navigation) {
@@ -59,6 +60,7 @@ GuiManifest manifestFromSpec(CliSpec spec) {
             group: groupId,
             icon: node.icon,
             kind: node.kind,
+            section: node.section,
           ),
         );
         if (node.navigation) {

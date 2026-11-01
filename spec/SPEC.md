@@ -58,7 +58,10 @@ to the target's generated screen or are hidden.
 
 A group names a set of related commands (e.g. `workers` containing
 `workers.list`, `workers.add`). Fields: `id`, `label`, `icon?`,
-`description?`, `parent?` (id of an enclosing group). A command joins a group
+`description?`, `parent?` (id of an enclosing group), `section?` (nonempty
+sidebar section label). A root group owns the placement of all its descendants;
+child section values do not split it. A root group without a section appears at
+the top. A command joins a group
 with its `group` field. A GUI may show groups as sidebar sections; a
 navigation entry for a group targets one command (normally its default
 command). Every `group` and `parent` reference MUST name a declared group.
@@ -70,7 +73,8 @@ command). Every `group` and `parent` reference MUST name a declared group.
 | `id` | id | Unique command id |
 | `group` | id | Optional; the group this command belongs to |
 | `icon` | string | Optional icon name (see §5.3); GUIs show a default for a missing or unknown one |
-| `kind` | `info` \| `action` | What the command does: `info` only reads and reports, `action` does something (the default). GUIs list them in separate sections |
+| `section` | string | Optional nonempty sidebar section label for ungrouped commands; the root group controls placement of grouped commands. Sections follow first appearance order |
+| `kind` | `info` \| `action` | What the command does: `info` only reads and reports, `action` does something (the default). classification only; sidebar placement uses `section` |
 | `argv` | sequence of strings | Fixed argument prefix, e.g. `["workers", "list"]` |
 | `title`, `description` | string | |
 | `parameters` | Parameter[] | See §5.1 |
@@ -83,10 +87,18 @@ command). Every `group` and `parent` reference MUST name a declared group.
 
 ### 5.1 Parameters
 
-`name`, `kind` (`option` \| `flag` \| `positional`), `type` (`string` \|
+`name`, `kind` (`option` \| `flag` \| `positional` \| `stdin`), `type` (`string` \|
 `integer` \| `number` \| `boolean` \| `enum` \| `path` \| `secret`),
 `required` (boolean), `default` (string, interpreted per `type`), `values` (for `enum`), `multiple`, `label`, `help`.
 `secret` values MUST NOT be displayed, logged or stored in history.
+
+A secret stdin parameter declares `kind: stdin` and `stdinFlag` (a lowercase CLI flag name without
+`--`). The GUI passes the flag in argv and writes the secret as one line to
+standard input. Only one such parameter is allowed per command. It is not
+included in the command preview, process arguments, or result history. CLIs
+using this field must accept that flag and read the secret from stdin. Older
+clients that do not support `stdin` reject the manifest rather than passing
+the secret in process arguments.
 
 ### 5.2 Output
 

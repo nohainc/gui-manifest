@@ -71,6 +71,7 @@ String _header(CliSpec spec) {
 String _syntax(List<String> path, CliCommand command) {
   final words = <String>[...path];
   for (final p in command.parameters) {
+    if (p.hidden || p.stdinFlag != null) continue;
     switch (p.kind) {
       case GuiParamKind.positional:
         final name = '${_placeholder(p.name)}${p.multiple ? '...' : ''}';

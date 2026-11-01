@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'cli_runner.dart';
 import 'manifest.dart';
-import 'output_format.dart';
 import 'result_card.dart';
 import 'result_history.dart';
 
@@ -18,7 +18,6 @@ class CommandPage extends StatefulWidget {
     required this.runner,
     required this.programName,
     required this.history,
-    this.outputFormat = OutputFormatOption.nano,
     this.autoRun = false,
   });
 
@@ -28,7 +27,6 @@ class CommandPage extends StatefulWidget {
   /// The CLI's name, shown in command lines (never its install path).
   final String programName;
   final ResultHistory history;
-  final OutputFormatOption outputFormat;
 
   /// Runs once on first open when the command needs no input and is safe.
   final bool autoRun;
@@ -107,7 +105,21 @@ class _CommandPageState extends State<CommandPage> {
       );
       if (ok != true || !mounted) return;
     }
-    await widget.history.track(_command.id, widget.runner.start(args));
+    final input = _command.parameters
+        .where(
+          (p) =>
+              p.stdinFlag != null && (_values[p.name] ?? '').trim().isNotEmpty,
+        )
+        .firstOrNull;
+    final runner = widget.runner;
+    if (input != null && runner is! CliInputRunner) return;
+    final run = input == null
+        ? runner.start(args)
+        : (runner as CliInputRunner).startWithInput(
+            args,
+            _values[input.name] ?? '',
+          );
+    await widget.history.track(_command.id, run);
   }
 
   Widget _field(CommandParameter p) {
@@ -160,7 +172,14 @@ class _CommandPageState extends State<CommandPage> {
       builder: (context, _) {
         final running = widget.history.isRunning(_command.id);
         final results = widget.history.resultsOf(_command.id);
-        final canRun = _args() != null && !running;
+        final requiresInput = _command.parameters.any(
+          (p) =>
+              p.stdinFlag != null && (_values[p.name] ?? '').trim().isNotEmpty,
+        );
+        final canRun =
+            _args() != null &&
+            !running &&
+            (!requiresInput || widget.runner is CliInputRunner);
         return ListView(
           padding: const EdgeInsets.all(24),
           children: [
@@ -177,23 +196,43 @@ class _CommandPageState extends State<CommandPage> {
             // The command line follows the description and updates as the
             // form is filled in. Results repeat the executed line.
             const SizedBox(height: 12),
-            SelectableText.rich(
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: '\$ ',
-                    style: TextStyle(color: theme.colorScheme.primary),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: SelectableText.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '\$ ',
+                          style: TextStyle(color: theme.colorScheme.primary),
+                        ),
+                        TextSpan(
+                          text: _command.preview(
+                            _values,
+                            program: widget.programName,
+                          ),
+                        ),
+                      ],
+                    ),
+                    key: const ValueKey('command-line'),
+                    style: mono,
                   ),
-                  TextSpan(
-                    text: _command.preview(
-                      _values,
-                      program: widget.programName,
+                ),
+                IconButton(
+                  tooltip: 'Copy command',
+                  icon: const Icon(Icons.content_copy_outlined, size: 18),
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => Clipboard.setData(
+                    ClipboardData(
+                      text: _command.preview(
+                        _values,
+                        program: widget.programName,
+                      ),
                     ),
                   ),
-                ],
-              ),
-              key: const ValueKey('command-line'),
-              style: mono,
+                ),
+              ],
             ),
             if (_command.interactive) ...[
               const SizedBox(height: 12),
@@ -257,7 +296,6 @@ class _CommandPageState extends State<CommandPage> {
                 command: _command,
                 result: result,
                 program: widget.programName,
-                format: widget.outputFormat,
               ),
           ],
         );

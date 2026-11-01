@@ -49,7 +49,12 @@ abstract interface class CliRunner {
   CliRun start(List<String> args);
 }
 
-final class ProcessCliRunner implements CliRunner {
+/// A runner that can securely provide a secret on standard input.
+abstract interface class CliInputRunner {
+  CliRun startWithInput(List<String> args, String input);
+}
+
+final class ProcessCliRunner implements CliRunner, CliInputRunner {
   ProcessCliRunner(this.executable, {this.environment});
 
   @override
@@ -86,7 +91,12 @@ final class ProcessCliRunner implements CliRunner {
   }
 
   @override
-  CliRun start(List<String> args) {
+  CliRun start(List<String> args) => _start(args, null);
+
+  @override
+  CliRun startWithInput(List<String> args, String input) => _start(args, input);
+
+  CliRun _start(List<String> args, String? input) {
     final watch = Stopwatch()..start();
     Process? process;
     var cancelled = false;
@@ -107,7 +117,7 @@ final class ProcessCliRunner implements CliRunner {
         );
       }
       final p = process!;
-      // The GUI never answers prompts; interactive commands get EOF.
+      if (input != null) p.stdin.writeln(input);
       unawaited(p.stdin.close());
       final out = p.stdout.transform(utf8.decoder).join();
       final err = p.stderr.transform(utf8.decoder).join();

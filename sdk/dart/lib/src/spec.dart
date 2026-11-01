@@ -64,6 +64,7 @@ final class CliGroup extends CliNode {
     required this.children,
     this.defaultCommand,
     this.navigationCommand,
+    this.section,
     super.icon,
     super.navigation,
     super.aliases,
@@ -71,6 +72,9 @@ final class CliGroup extends CliNode {
   });
 
   final List<CliNode> children;
+
+  /// Sidebar section for this group and all its descendants.
+  final String? section;
 
   /// Child run when the group is invoked alone (`syntila workers` runs
   /// `workers list`). Without it, invoking the group alone is a usage error.
@@ -99,6 +103,7 @@ final class CliCommand extends CliNode {
     this.requires = const <String>[],
     this.guiHidden = false,
     this.kind = GuiCommandKind.action,
+    this.section,
     super.icon,
     super.navigation,
     super.aliases,
@@ -132,8 +137,11 @@ final class CliCommand extends CliNode {
 
   /// [GuiCommandKind.info] for commands that only read and report,
   /// [GuiCommandKind.action] (the default) for those that do something. A GUI
-  /// lists them in separate sections.
+  /// can use this as classification independent of the sidebar section.
   final GuiCommandKind kind;
+
+  /// Optional sidebar section label.
+  final String? section;
 }
 
 /// Everything a CLI declares about itself: identity, shared options and the
@@ -333,6 +341,15 @@ void _validateCommand(CliCommand command, String label, Set<String> globals) {
   void fail(String message) => throw CliSpecError('"$label": $message');
 
   final seen = <String>{};
+  final stdinParameters =
+      command.parameters.where((p) => p.stdinFlag != null).toList();
+  if (stdinParameters.length > 1) fail('only one stdin secret is supported');
+  for (final p in stdinParameters) {
+    if (!command.parameters.any(
+        (flag) => flag.name == p.stdinFlag && flag.kind == GuiParamKind.flag)) {
+      fail('stdinFlag "${p.stdinFlag}" must refer to a declared flag');
+    }
+  }
   var sawOptionalPositional = false;
   final positionals = command.parameters.where(
     (p) => p.kind == GuiParamKind.positional,
@@ -356,6 +373,13 @@ void _validateCommand(CliCommand command, String label, Set<String> globals) {
 void _validateParameter(GuiParameter p, String label) {
   void fail(String message) => throw CliSpecError('$label: $message');
 
+  if (p.stdinFlag != null &&
+      (p.type != GuiParamType.secret ||
+          p.kind != GuiParamKind.option ||
+          !_word.hasMatch(p.stdinFlag!) ||
+          p.multiple)) {
+    fail('stdinFlag requires a single secret option and a valid flag name');
+  }
   if (!_word.hasMatch(p.name)) {
     fail('names are lowercase words joined by "-"');
   }

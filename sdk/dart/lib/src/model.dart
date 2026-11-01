@@ -52,6 +52,7 @@ final class GuiGroup {
     this.icon,
     this.description,
     this.parent,
+    this.section,
   });
 
   final String id;
@@ -62,12 +63,16 @@ final class GuiGroup {
   /// Id of the enclosing group, if any.
   final String? parent;
 
+  /// Sidebar section for the complete root group.
+  final String? section;
+
   Map<String, Object> toTree() => <String, Object>{
         'id': id,
         'label': label,
         if (icon != null) 'icon': icon!,
         if (description != null) 'description': description!,
         if (parent != null) 'parent': parent!,
+        if (section != null) 'section': section!,
       };
 }
 
@@ -95,6 +100,7 @@ final class GuiParameter {
     this.label,
     this.help,
     this.hidden = false,
+    this.stdinFlag,
   });
 
   final String name;
@@ -111,10 +117,14 @@ final class GuiParameter {
   /// and of the GUI manifest.
   final bool hidden;
 
+  /// CLI flag requesting this secret on stdin; the value never enters argv.
+  final String? stdinFlag;
+
   Map<String, Object> toTree() => <String, Object>{
         'name': name,
-        'kind': kind.name,
+        'kind': stdinFlag == null ? kind.name : 'stdin',
         'type': type == GuiParamType.enumeration ? 'enum' : type.name,
+        if (stdinFlag != null) 'stdinFlag': stdinFlag!,
         if (required) 'required': _bool(true),
         if (defaultValue != null) 'default': defaultValue!,
         if (values.isNotEmpty) 'values': List<Object>.of(values),
@@ -150,6 +160,7 @@ final class GuiCommand {
     this.group,
     this.icon,
     this.kind = GuiCommandKind.action,
+    this.section,
   });
 
   final String id;
@@ -173,6 +184,9 @@ final class GuiCommand {
   /// Whether the command reads or does something.
   final GuiCommandKind kind;
 
+  /// Optional sidebar section label. Commands without one appear at the top.
+  final String? section;
+
   Map<String, Object> toTree() => <String, Object>{
         'id': id,
         'argv': List<Object>.of(argv),
@@ -181,6 +195,7 @@ final class GuiCommand {
         if (group != null) 'group': group!,
         if (icon != null) 'icon': icon!,
         'kind': kind.name,
+        if (section != null) 'section': section!,
         if (destructive) 'destructive': _bool(true),
         if (interactive) 'interactive': _bool(true),
         if (longRunning) 'longRunning': _bool(true),

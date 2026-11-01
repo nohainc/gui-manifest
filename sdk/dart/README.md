@@ -9,6 +9,13 @@ declaration:
 - groups, so `workers list`, `workers add` … are a group the GUI can show as
   one section.
 
+A command can set `section: 'Diagnostics'` to choose its sidebar section.
+Labels are arbitrary and appear in first-seen order. Commands without a section
+appear at the top, and main navigation entries retain their own position.
+A root `CliGroup` may declare its own `section`; it places the entire group
+together and takes precedence over descendant section values.
+`kind` remains a separate read/action classification.
+
 ## Declare the commands
 
 ```dart

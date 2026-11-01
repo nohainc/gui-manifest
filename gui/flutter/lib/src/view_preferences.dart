@@ -3,8 +3,6 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
-import 'output_format.dart';
-
 /// Text sizes offered in Settings, as in the Syntila app.
 enum TextSizeOption {
   standard('Default', 1.0),
@@ -27,28 +25,14 @@ enum TextSizeOption {
 /// View choices that apply to this device only.
 @immutable
 class GuiViewPreferences {
-  const GuiViewPreferences({
-    this.textSize = TextSizeOption.standard,
-    this.outputFormat = OutputFormatOption.nano,
-  });
+  const GuiViewPreferences({this.textSize = TextSizeOption.standard});
 
   final TextSizeOption textSize;
 
-  /// How structured command results are written as text. Nano by default.
-  final OutputFormatOption outputFormat;
+  GuiViewPreferences copyWith({TextSizeOption? textSize}) =>
+      GuiViewPreferences(textSize: textSize ?? this.textSize);
 
-  GuiViewPreferences copyWith({
-    TextSizeOption? textSize,
-    OutputFormatOption? outputFormat,
-  }) => GuiViewPreferences(
-    textSize: textSize ?? this.textSize,
-    outputFormat: outputFormat ?? this.outputFormat,
-  );
-
-  String encode() => jsonEncode({
-    'textSize': textSize.name,
-    'outputFormat': outputFormat.name,
-  });
+  String encode() => jsonEncode({'textSize': textSize.name});
 
   /// Unknown or damaged input gives the defaults.
   static GuiViewPreferences decode(String? raw) {
@@ -58,7 +42,6 @@ class GuiViewPreferences {
       if (json is! Map) return const GuiViewPreferences();
       return GuiViewPreferences(
         textSize: TextSizeOption.fromName(json['textSize']),
-        outputFormat: OutputFormatOption.fromName(json['outputFormat']),
       );
     } on FormatException {
       return const GuiViewPreferences();
@@ -67,12 +50,10 @@ class GuiViewPreferences {
 
   @override
   bool operator ==(Object other) =>
-      other is GuiViewPreferences &&
-      other.textSize == textSize &&
-      other.outputFormat == outputFormat;
+      other is GuiViewPreferences && other.textSize == textSize;
 
   @override
-  int get hashCode => Object.hash(textSize, outputFormat);
+  int get hashCode => textSize.hashCode;
 }
 
 /// Device-local storage for [GuiViewPreferences].

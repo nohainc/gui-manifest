@@ -158,7 +158,6 @@ class _GuiManifestShellState extends State<GuiManifestShell> {
       runner: widget.runner,
       programName: m.cli.name,
       history: _history,
-      outputFormat: _preferences.outputFormat,
       autoRun: autoRun,
     );
   }
@@ -241,7 +240,14 @@ class _GuiManifestShellState extends State<GuiManifestShell> {
                 Expanded(
                   child: selected == null
                       ? const Center(child: Text('This CLI has no commands.'))
-                      : _content(m, selected),
+                      : Align(
+                          alignment: Alignment.topCenter,
+                          child: SizedBox(
+                            width: 800,
+                            height: double.infinity,
+                            child: _content(m, selected),
+                          ),
+                        ),
                 ),
               ],
             );

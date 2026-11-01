@@ -146,6 +146,7 @@ final class CliRunner extends CommandRunner<int> {
 }
 
 void _addParameter(ArgParser parser, GuiParameter p) {
+  if (p.stdinFlag != null) return;
   switch (p.kind) {
     case GuiParamKind.flag:
       parser.addFlag(
@@ -256,7 +257,8 @@ final class _LeafCommand extends Command<int> with _NodeCommand {
     // `args` only complains about a missing mandatory option when its value
     // is read, as an ArgumentError; report it as a usage error up front.
     for (final p in command.parameters) {
-      if (p.kind == GuiParamKind.option &&
+      if (p.stdinFlag == null &&
+          p.kind == GuiParamKind.option &&
           p.required &&
           !args.wasParsed(p.name)) {
         usageException('Option "--${p.name}" is mandatory.');

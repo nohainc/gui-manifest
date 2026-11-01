@@ -3,17 +3,20 @@ import 'dart:io';
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_manifest/gui_manifest.dart' show GuiIcons;
 import 'package:gui_manifest_flutter/gui_manifest_flutter.dart';
 import 'package:gui_manifest_flutter/src/result_card.dart';
+import 'package:gui_manifest_flutter/src/command_page.dart';
+import 'package:gui_manifest_flutter/src/settings_page.dart';
 import 'package:nanomarkup/nanomarkup.dart';
 
 final _fixture = decode(
   File('../../conformance/fixtures/minimal.nano').readAsStringSync(),
 );
 
-class _FakeRunner implements CliRunner {
+class _FakeRunner implements CliRunner, CliInputRunner {
   _FakeRunner({
     this.manifest,
     this.outputs = const {},
@@ -24,6 +27,7 @@ class _FakeRunner implements CliRunner {
   final Object? manifest;
   final Map<String, String> outputs;
   final calls = <List<String>>[];
+  final inputs = <String>[];
 
   /// Leaves every run unfinished until [finish] is called.
   final bool hold;
@@ -50,6 +54,12 @@ class _FakeRunner implements CliRunner {
   @override
   Future<GuiManifestModel> loadManifest() async =>
       GuiManifestModel.fromTree(manifest ?? _fixture);
+
+  @override
+  CliRun startWithInput(List<String> args, String input) {
+    inputs.add(input);
+    return start(args);
+  }
 
   @override
   CliRun start(List<String> args) {
@@ -127,8 +137,13 @@ final Map<String, Object> _kindManifest = () {
   ];
   Map<String, Object> byId(String id) =>
       commands.firstWhere((c) => c['id'] == id);
+  for (final command in commands) {
+    command['section'] = 'ACTIONS';
+  }
   byId('config.show')['kind'] = 'info';
+  byId('config.show')['section'] = 'INFO';
   byId('version')['kind'] = 'info';
+  byId('version')['section'] = 'INFO';
   byId('version')['icon'] = 'tag';
   byId('config.tools.run')['icon'] = 'no-such-icon';
   commands.add({
@@ -136,9 +151,15 @@ final Map<String, Object> _kindManifest = () {
     'argv': ['login'],
     'title': 'Sign in',
     'kind': 'action',
+    'section': 'ACTIONS',
     'icon': 'login',
   });
   copy['commands'] = commands;
+  copy['groups'] = [
+    for (final group
+        in (_richManifest['groups'] as List).cast<Map<String, Object>>())
+      {...group, if (group['id'] == 'config') 'section': 'ACTIONS'},
+  ];
   return copy;
 }();
 
@@ -263,13 +284,13 @@ void main() {
       ['status', '--json'],
     ]);
     // Results are written as Nano Markup by default.
-    expect(find.textContaining('state running'), findsOneWidget);
-    expect(find.textContaining('slots 2'), findsOneWidget);
+    expect(find.textContaining('"state": "running"'), findsOneWidget);
+    expect(find.textContaining('"slots": 2'), findsOneWidget);
 
     await tester.tap(find.text('Workers'));
     await tester.pumpAndSettle();
     expect(runner.calls.last, ['workers', 'list', '--json']);
-    expect(find.textContaining('type gemini'), findsOneWidget);
+    expect(find.textContaining('"type": "gemini"'), findsOneWidget);
   });
 
   testWidgets('destructive command asks before running', (tester) async {
@@ -316,7 +337,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(runner.calls.last, ['workers', 'list', '--json']);
-    expect(find.textContaining('type gemini'), findsOneWidget);
+    expect(find.textContaining('"type": "gemini"'), findsOneWidget);
     expect(find.text('Remove worker'), findsOneWidget, reason: 'expanded');
 
     // Tapping the open group again hides its commands, like a Space.
@@ -324,7 +345,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Remove worker'), findsNothing);
     expect(
-      find.textContaining('type gemini'),
+      find.textContaining('"type": "gemini"'),
       findsOneWidget,
       reason: 'page stays open',
     );
@@ -340,7 +361,7 @@ void main() {
     final runner = _FakeRunner(manifest: _richManifest);
     await _pump(tester, runner);
 
-    expect(find.text('COMMANDS'), findsOneWidget);
+    expect(find.text('COMMANDS'), findsNothing);
     expect(find.text('Config'), findsOneWidget);
     expect(find.text('Version'), findsOneWidget);
     expect(find.text('Show config'), findsNothing, reason: 'collapsed');
@@ -419,8 +440,7 @@ void main() {
         tester.getTopLeft(find.text('Remove worker')).dx,
         greaterThan(tester.getTopLeft(find.text('Workers')).dx),
       );
-      // Both show their manifest icon (never a folder): a Space at 16px, a
-      // Thread a little smaller.
+      // Only the Space shows its manifest icon.
       Icon iconIn(String rowId, IconData icon) => tester.widget<Icon>(
         find.descendant(
           of: find.byKey(ValueKey('sidebar-row-$rowId')),
@@ -432,8 +452,11 @@ void main() {
         GuiSidebarMetrics.iconSize,
       );
       expect(
-        iconIn('cmd:workers.remove', iconFor('trash')).size,
-        GuiSidebarMetrics.threadIconSize,
+        find.descendant(
+          of: find.byKey(const ValueKey('sidebar-row-cmd:workers.remove')),
+          matching: find.byType(Icon),
+        ),
+        findsNothing,
       );
       // An expandable row shows whether it is open.
       expect(
@@ -586,10 +609,7 @@ void main() {
 
   group('view preferences', () {
     test('round trip and fall back to defaults', () {
-      const large = GuiViewPreferences(
-        textSize: TextSizeOption.large,
-        outputFormat: OutputFormatOption.yaml,
-      );
+      const large = GuiViewPreferences(textSize: TextSizeOption.large);
       expect(GuiViewPreferences.decode(large.encode()), large);
       // Settings saved before the output format existed still load.
       expect(
@@ -728,6 +748,52 @@ void main() {
       );
     });
 
+    testWidgets('copies the displayed command without the prompt', (
+      tester,
+    ) async {
+      String? copied;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied = (call.arguments as Map)['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      await _pump(tester, _FakeRunner());
+      await openWorkers(tester);
+      await tester.tap(find.text('Remove worker'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'two words');
+      await tester.pump();
+      await tester.tap(find.byTooltip('Copy command'));
+      await tester.pump();
+      expect(copied, "example workers remove 'two words'");
+    });
+
+    testWidgets('content is limited to 800 pixels on wide windows', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1800, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        GuiManifestApp(runner: _FakeRunner(), title: 'Example'),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.getSize(find.byType(CommandPage)).width, 800);
+      await tester.tap(find.byTooltip('Settings'));
+      await tester.pumpAndSettle();
+      expect(tester.getSize(find.byType(SettingsPage)).width, 800);
+    });
+
     testWidgets('a result shows the executed command with a \$, no path', (
       tester,
     ) async {
@@ -766,14 +832,14 @@ void main() {
       );
       await _pump(tester, runner);
       await openWorkers(tester);
-      expect(find.textContaining('type gemini'), findsOneWidget);
+      expect(find.textContaining('"type": "gemini"'), findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey('sidebar-row-nav:status')));
       await tester.pumpAndSettle();
-      expect(find.textContaining('type gemini'), findsNothing);
+      expect(find.textContaining('"type": "gemini"'), findsNothing);
       await openWorkers(tester);
 
-      expect(find.textContaining('type gemini'), findsOneWidget);
+      expect(find.textContaining('"type": "gemini"'), findsOneWidget);
       expect(
         runner.calls.where((c) => c.first == 'workers'),
         hasLength(1),
@@ -837,7 +903,7 @@ void main() {
       await frames(tester);
       await select(tester, 'workers');
       expect(find.text('Running…'), findsNothing);
-      expect(find.textContaining('type gemini'), findsOneWidget);
+      expect(find.textContaining('"type": "gemini"'), findsOneWidget);
     });
 
     testWidgets('Cancel stops a running command from another visit', (
@@ -856,145 +922,174 @@ void main() {
     });
   });
 
-  group('output format', () {
-    const status = {'status --json': '{"state": "running", "slots": 2}'};
-
-    Future<void> openSettingsAnd(WidgetTester tester, String format) async {
-      await tester.tap(find.byTooltip('Settings'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(format));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('sidebar-row-nav:status')));
-      await tester.pumpAndSettle();
-    }
-
-    testWidgets('results are written as Nano Markup by default', (
-      tester,
-    ) async {
-      await _pump(tester, _FakeRunner(outputs: status));
-      expect(find.textContaining('state running'), findsOneWidget);
-      expect(find.textContaining('..'), findsWidgets);
-      expect(find.text('Nano'), findsOneWidget, reason: 'tab label');
-    });
-
-    testWidgets('Settings offers Nano first, then JSON and YAML', (
-      tester,
-    ) async {
-      await _pump(tester, _FakeRunner(outputs: status));
-      await tester.tap(find.byTooltip('Settings'));
-      await tester.pumpAndSettle();
-      expect(find.text('Output format'), findsOneWidget);
-      final x = [
-        for (final label in ['Nano', 'JSON', 'YAML'])
-          tester.getCenter(find.text(label)).dx,
-      ];
-      expect(x[0], lessThan(x[1]));
-      expect(x[1], lessThan(x[2]));
-      expect(
-        tester
-            .widget<SegmentedButton<OutputFormatOption>>(
-              find.byKey(const ValueKey('setting-output-format')),
-            )
-            .selected,
-        {OutputFormatOption.nano},
-      );
-    });
-
-    testWidgets('changing it rewrites earlier results', (tester) async {
-      final store = ViewPreferencesStore.memory();
-      tester.view.physicalSize = const Size(1400, 900);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      await tester.pumpWidget(
-        GuiManifestApp(
-          runner: _FakeRunner(outputs: status),
-          title: 'Example',
-          preferencesStore: store,
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      await openSettingsAnd(tester, 'JSON');
-      expect(find.textContaining('"state": "running"'), findsOneWidget);
-      expect(store.load().outputFormat, OutputFormatOption.json);
-
-      await openSettingsAnd(tester, 'YAML');
-      expect(find.textContaining('state: running'), findsOneWidget);
-      expect(find.textContaining('slots: 2'), findsOneWidget);
-
-      await openSettingsAnd(tester, 'Nano');
-      expect(find.textContaining('state running'), findsOneWidget);
-    });
-
-    testWidgets('the choice is remembered', (tester) async {
-      final store = ViewPreferencesStore.memory(
-        const GuiViewPreferences(
-          outputFormat: OutputFormatOption.yaml,
-        ).encode(),
-      );
-      tester.view.physicalSize = const Size(1400, 900);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      await tester.pumpWidget(
-        GuiManifestApp(
-          runner: _FakeRunner(outputs: status),
-          title: 'Example',
-          preferencesStore: store,
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.textContaining('state: running'), findsOneWidget);
-    });
-
-    testWidgets('the original output is one tap away', (tester) async {
-      await _pump(tester, _FakeRunner(outputs: status));
-      expect(find.textContaining('{"state"'), findsNothing);
-      await tester.tap(find.text('Show original output'));
-      await tester.pump();
-      expect(find.text('{"state": "running", "slots": 2}'), findsOneWidget);
-      await tester.tap(find.text('Show as Nano'));
-      await tester.pump();
-      expect(find.textContaining('{"state"'), findsNothing);
-    });
-
-    testWidgets('a table view is available next to the text', (tester) async {
-      final runner = _FakeRunner(
-        outputs: {'workers list --json': '[{"id": "w1", "type": "gemini"}]'},
-      );
-      await _pump(tester, runner);
-      await tester.tap(find.byKey(const ValueKey('sidebar-row-nav:workers')));
-      await tester.pumpAndSettle();
-      expect(find.byType(DataTable), findsNothing);
-      await tester.tap(find.text('Table'));
-      await tester.pumpAndSettle();
-      expect(find.byType(DataTable), findsOneWidget);
-      expect(find.text('gemini'), findsOneWidget);
-    });
-
-    testWidgets('plain text output is shown as printed', (tester) async {
+  testWidgets(
+    'secret input is sent over stdin and never appears in argv or result',
+    (tester) async {
       final manifest = {
         'manifestVersion': '1',
         'cli': {'name': 'x', 'version': '1'},
-        'navigation': [
-          {'id': 'hi', 'label': 'Hi', 'command': 'hi'},
-        ],
+        'navigation': <Object>[],
         'commands': [
           {
-            'id': 'hi',
-            'argv': ['hi'],
-            'title': 'Hi',
-            'output': {'format': 'text', 'view': 'raw'},
+            'id': 'login',
+            'argv': ['login'],
+            'title': 'Sign in',
+            'parameters': [
+              {
+                'name': 'email',
+                'kind': 'option',
+                'type': 'string',
+                'label': 'Email',
+              },
+              {
+                'name': 'password-input',
+                'kind': 'stdin',
+                'type': 'secret',
+                'stdinFlag': 'password-stdin',
+                'required': 'true',
+                'label': 'Password',
+              },
+            ],
           },
         ],
       };
-      await _pump(
-        tester,
-        _FakeRunner(manifest: manifest, outputs: {'hi': 'hello world\n'}),
+      final runner = _FakeRunner(manifest: manifest);
+      await _pump(tester, runner);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Email'),
+        'user@example.test',
       );
-      expect(find.text('hello world'), findsOneWidget);
-      expect(find.text('Table'), findsNothing);
-      expect(find.text('Show original output'), findsNothing);
-    });
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Password *'),
+        'private-value',
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<TextField>(find.widgetWithText(TextField, 'Password *'))
+            .obscureText,
+        isTrue,
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Run'));
+      await tester.pumpAndSettle();
+      expect(runner.inputs, ['private-value']);
+      expect(runner.calls.single, [
+        'login',
+        '--email',
+        'user@example.test',
+        '--password-stdin',
+      ]);
+      expect(runner.calls.single.join(' '), isNot(contains('private-value')));
+      final resultText = tester
+          .widget<SelectableText>(find.byKey(const ValueKey('command-line')))
+          .textSpan!
+          .toPlainText();
+      expect(resultText, isNot(contains('private-value')));
+    },
+  );
+
+  test(
+    'process runner sends input on stdin without putting it in args',
+    () async {
+      final runner = ProcessCliRunner('/bin/cat');
+      final result = await runner.startWithInput([], 'private-value').result;
+      expect(result.exitCode, 0);
+      expect(result.stdout, 'private-value\n');
+      expect(result.args, isEmpty);
+    },
+    skip: Platform.isWindows,
+  );
+
+  testWidgets('hidden commands cannot appear through navigation', (
+    tester,
+  ) async {
+    final manifest = {
+      'manifestVersion': '1',
+      'cli': {'name': 'x', 'version': '1'},
+      'navigation': [
+        {'id': 'hidden', 'label': 'Hidden entry', 'command': 'hidden'},
+      ],
+      'commands': [
+        {
+          'id': 'hidden',
+          'argv': ['hidden'],
+          'title': 'Hidden',
+          'hidden': 'true',
+        },
+        {
+          'id': 'visible',
+          'argv': ['visible'],
+          'title': 'Visible',
+        },
+      ],
+    };
+    final runner = _FakeRunner(manifest: manifest);
+    await _pump(tester, runner);
+    expect(find.text('Hidden entry'), findsNothing);
+    expect(find.text('Hidden'), findsNothing);
+    expect(find.text('Visible'), findsWidgets);
+    expect(runner.calls, isEmpty);
+  });
+
+  testWidgets('shows original output and no output format setting', (
+    tester,
+  ) async {
+    const raw = '{"state": "running", "slots": 2}\n';
+    await _pump(tester, _FakeRunner(outputs: {'status --json': raw}));
+    expect(find.text(raw), findsOneWidget);
+    await tester.tap(find.byTooltip('Settings'));
+    await tester.pumpAndSettle();
+    expect(find.text('Output format'), findsNothing);
+  });
+
+  testWidgets('copies stdout and stderr from the result', (tester) async {
+    String? copied;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied = (call.arguments as Map)['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.macOS),
+        home: Scaffold(
+          body: ResultCard(
+            command: const CommandSpec(id: 'x', argv: ['x'], title: 'X'),
+            program: 'cli',
+            result: CliResult(
+              args: ['x'],
+              exitCode: 1,
+              stdout: 'short\t\t1\nlongerName\t2\n',
+              stderr: 'error\n',
+              duration: Duration.zero,
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(find.text('short           1\nlongerName      2\n'), findsOneWidget);
+    final output = tester.widget<SelectableText>(
+      find
+          .ancestor(
+            of: find.text('short           1\nlongerName      2\n'),
+            matching: find.byType(SelectableText),
+          )
+          .first,
+    );
+    expect(output.style?.fontFamily, 'Menlo');
+    await tester.tap(find.byTooltip('Copy output'));
+    await tester.pump();
+    expect(copied, 'short\t\t1\nlongerName\t2\nerror\n');
   });
 
   group('INFO and ACTIONS', () {
@@ -1007,7 +1102,7 @@ void main() {
       expect(find.text('ACTIONS'), findsOneWidget);
       expect(find.text('COMMANDS'), findsNothing);
       expect(y('INFO'), lessThan(y('Version')));
-      expect(y('Version'), lessThan(y('ACTIONS')));
+      expect(y('Sign in'), lessThan(y('INFO')));
       expect(y('ACTIONS'), lessThan(y('Sign in')));
     });
   });
@@ -1025,19 +1120,12 @@ void main() {
       expect(iconIn('cmd:login', iconFor('login')), findsOneWidget);
       // No icon declared: the default, never a folder.
       expect(iconIn('cmd:version', Icons.folder_outlined), findsNothing);
-      // Open Config > Tools: a name this GUI does not know also falls back.
-      await tester.tap(
-        find.byKey(const ValueKey('sidebar-row-group:config:action')),
-      );
+      // Nested items do not show command icons, even for unknown names.
+      await tester.tap(find.byKey(const ValueKey('sidebar-row-group:config')));
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.byKey(const ValueKey('sidebar-row-group:tools:action')),
-      );
+      await tester.tap(find.byKey(const ValueKey('sidebar-row-group:tools')));
       await tester.pumpAndSettle();
-      expect(
-        iconIn('cmd:config.tools.run', defaultCommandIcon),
-        findsOneWidget,
-      );
+      expect(iconIn('cmd:config.tools.run', defaultCommandIcon), findsNothing);
     });
 
     test(

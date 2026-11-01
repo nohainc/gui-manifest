@@ -179,7 +179,6 @@ mail: a@b.example''',
       'JSON',
       'YAML',
     ]);
-    expect(const GuiViewPreferences().outputFormat, OutputFormatOption.nano);
     expect(OutputFormatOption.fromName('nope'), OutputFormatOption.nano);
     expect(OutputFormatOption.fromName(null), OutputFormatOption.nano);
   });
